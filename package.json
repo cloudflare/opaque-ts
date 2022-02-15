@@ -1,0 +1,54 @@
+{
+    "name": "@cloudflare/opaque-ts",
+    "version": "0.7.4",
+    "description": "OPAQUE: Asymmetric Password-Authenticated Key Exchange in Typescript",
+    "author": "Armando Faz <armfazh@cloudflare.com>",
+    "maintainers": "Armando Faz <armfazh@cloudflare.com>",
+    "license": "BSD-3-Clause",
+    "private": false,
+    "type": "module",
+    "main": "./lib/src/index.js",
+    "module": "./lib/src/index.js",
+    "types": "./lib/src/index.d.ts",
+    "files": [
+        "lib/src/**/*.!(tsbuildinfo)"
+    ],
+    "keywords": [
+        "opaque",
+        "password",
+        "key exchange",
+        "crypto",
+        "cryptography"
+    ],
+    "devDependencies": {
+        "@peculiar/webcrypto": "^1.2.3",
+        "@rollup/plugin-commonjs": "21.0.1",
+        "@rollup/plugin-node-resolve": "13.1.1",
+        "@types/jest": "27.0.3",
+        "@typescript-eslint/eslint-plugin": "5.7.0",
+        "@typescript-eslint/parser": "5.7.0",
+        "eslint": "8.4.1",
+        "eslint-config-prettier": "8.3.0",
+        "eslint-plugin-jest": "25.3.0",
+        "eslint-plugin-jest-formatting": "3.1.0",
+        "eslint-plugin-prettier": "4.0.0",
+        "eslint-plugin-security": "1.4.0",
+        "jest": "27.3.1",
+        "prettier": "2.5.1",
+        "rollup": "2.61.1",
+        "typescript": "4.5.2"
+    },
+    "scripts": {
+        "prepack": "tsc -b",
+        "build": "tsc -b",
+        "clean": "tsc -b --clean . test",
+        "test": "tsc -b test && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --ci --no-cache",
+        "lint": "eslint .",
+        "format": "prettier './(src|test)/*.ts' --write",
+        "filesbundle": "rollup -c"
+    },
+    "dependencies": {
+        "@cloudflare/voprf-ts": "0.8.0",
+        "@noble/hashes": "0.4.4"
+    }
+}

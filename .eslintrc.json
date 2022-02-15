@@ -1,0 +1,91 @@
+{
+    "root": true,
+    "parserOptions": {
+        "ecmaVersion": 2020,
+        "sourceType": "module"
+    },
+    "extends": [
+        "eslint:recommended",
+        "plugin:security/recommended",
+        "prettier"
+    ],
+    "env": {
+        "es2020": true,
+        "browser": true,
+        "node": true
+    },
+    "ignorePatterns": [
+        "coverage/*",
+        "src/sjcl/index.js",
+        "src/sjcl/index.d.ts",
+        "lib/*"
+    ],
+    "overrides": [
+        {
+            "files": [
+                "**/*.ts"
+            ],
+            "parser": "@typescript-eslint/parser",
+            "parserOptions": {
+                "ecmaVersion": 2020,
+                "sourceType": "module"
+            },
+            "extends": [
+                "plugin:@typescript-eslint/eslint-recommended",
+                "plugin:@typescript-eslint/recommended",
+                "plugin:jest-formatting/recommended",
+                "plugin:jest/recommended",
+                "prettier"
+            ],
+            "rules": {
+                "max-lines-per-function": [
+                    "warn",
+                    {
+                        "max": 50,
+                        "skipComments": true,
+                        "skipBlankLines": true
+                    }
+                ],
+                "max-statements": [
+                    "warn",
+                    25
+                ],
+                "max-params": [
+                    "warn",
+                    5
+                ],
+                "no-loop-func": "warn",
+                "max-lines": "off",
+                "no-ternary": "off",
+                "no-inline-comments": "off",
+                "line-comment-position": "off",
+                "no-magic-numbers": "off",
+                "id-length": "off",
+                "max-classes-per-file": "off",
+                "sort-keys": "off",
+                "sort-vars": "off",
+                "no-bitwise": "off",
+                "no-plusplus": "off",
+                "capitalized-comments": "off",
+                "multiline-comment-style": "off",
+                "func-style": [
+                    "error",
+                    "declaration"
+                ],
+                "one-var": [
+                    "error",
+                    "never"
+                ],
+                "@typescript-eslint/no-namespace": [
+                    "warn"
+                ],
+                "@typescript-eslint/no-unused-vars": [
+                    "error",
+                    {
+                        "argsIgnorePattern": "^_"
+                    }
+                ]
+            }
+        }
+    ]
+}

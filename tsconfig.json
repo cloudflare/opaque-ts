@@ -1,0 +1,30 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "ES2020",
+        "lib": [
+            "dom"
+        ],
+        "composite": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "isolatedModules": true,
+        "strict": true,
+        "noEmitOnError": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "rootDir": ".",
+        "outDir": "./lib"
+    },
+    "files": [],
+    "include": [],
+    "references": [
+        {
+            "path": "./src"
+        }
+    ]
+}

@@ -1,0 +1,15 @@
+{
+    "extends": "../tsconfig.json",
+    "include": [
+        ".",
+        "testdata/*.json"
+    ],
+    "compilerOptions": {
+        "resolveJsonModule": true
+    },
+    "references": [
+        {
+            "path": ".."
+        }
+    ]
+}
