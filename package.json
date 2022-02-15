@@ -1,6 +1,6 @@
 {
     "name": "@cloudflare/opaque-ts",
-    "version": "0.7.4",
+    "version": "0.7.5",
     "description": "OPAQUE: Asymmetric Password-Authenticated Key Exchange in Typescript",
     "author": "Armando Faz <armfazh@cloudflare.com>",
     "maintainers": "Armando Faz <armfazh@cloudflare.com>",
@@ -20,6 +20,8 @@
         "crypto",
         "cryptography"
     ],
+    "homepage": "https://github.com/cloudflare/opaque-ts#readme",
+    "repository": "github:cloudflare/opaque-ts",
     "devDependencies": {
         "@peculiar/webcrypto": "^1.2.3",
         "@rollup/plugin-commonjs": "21.0.1",
