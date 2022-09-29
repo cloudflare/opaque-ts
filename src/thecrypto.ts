@@ -7,7 +7,10 @@ import { ctEqual, joinAll } from './util.js'
 
 import { scrypt } from '@noble/hashes/lib/scrypt'
 
-const getCrypto = () => (typeof window === 'undefined' ? require('crypto').webcrypto : crypto)
+const getCrypto = () =>
+    typeof crypto === 'undefined' && typeof window === 'undefined'
+        ? require('crypto').webcrypto
+        : crypto
 
 export interface PrngFn {
     random(numBytes: number): number[]
