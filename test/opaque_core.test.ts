@@ -7,9 +7,9 @@ import {
     AKEKeyPair,
     Config,
     CredentialFile,
+    OpaqueConfig,
     OpaqueID,
-    RegistrationRecord,
-    getOpaqueConfig
+    RegistrationRecord
 } from '../src/index.js'
 
 import { KVStorage } from './common.js'
@@ -137,7 +137,7 @@ async function test_core_login(input: inputTest, output: outputTest): Promise<vo
 describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521])(
     'core',
     (opaqueID: OpaqueID) => {
-        const cfg = getOpaqueConfig(opaqueID)
+        const cfg = new OpaqueConfig(opaqueID)
 
         describe(`${cfg.toString()}`, () => {
             let input: inputTest = {} as unknown as inputTest

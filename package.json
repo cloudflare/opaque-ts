@@ -1,6 +1,6 @@
 {
     "name": "@cloudflare/opaque-ts",
-    "version": "0.7.5",
+    "version": "0.9.0",
     "description": "OPAQUE: Asymmetric Password-Authenticated Key Exchange in Typescript",
     "author": "Armando Faz <armfazh@cloudflare.com>",
     "maintainers": "Armando Faz <armfazh@cloudflare.com>",
@@ -44,6 +44,7 @@
     },
     "scripts": {
         "prepack": "tsc -b",
+        "prepare": "tsc -b",
         "build": "tsc -b",
         "clean": "tsc -b --clean . test",
         "test": "tsc -b test && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --ci --no-cache",
@@ -52,7 +53,7 @@
         "filesbundle": "rollup -c"
     },
     "dependencies": {
-        "@cloudflare/voprf-ts": "0.8.0",
+        "@cloudflare/voprf-ts": "github:cloudflare/voprf-ts",
         "@noble/hashes": "1.2.0"
     }
 }

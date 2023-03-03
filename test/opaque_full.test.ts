@@ -14,14 +14,14 @@ import {
     KE2,
     KE3,
     OpaqueClient,
+    OpaqueConfig,
     OpaqueID,
     OpaqueServer,
     RegistrationClient,
     RegistrationRecord,
     RegistrationRequest,
     RegistrationResponse,
-    RegistrationServer,
-    getOpaqueConfig
+    RegistrationServer
 } from '../src/index.js'
 
 import { KVStorage } from './common.js'
@@ -42,7 +42,7 @@ interface outputTest {
     export_key?: number[]
 }
 
-async function test_full_registration(input: inputTest, output: outputTest): Promise<void> {
+async function test_full_registration(input: inputTest, output: outputTest): Promise<boolean> {
     // Setup
     const { cfg, password, server_identity, client_identity, credential_identifier, database } =
         input
@@ -102,9 +102,11 @@ async function test_full_registration(input: inputTest, output: outputTest): Pro
     expect(success).toBe(true)
     output.export_key = export_key
     output.record = record
+
+    return true
 }
 
-async function test_full_login(input: inputTest, output: outputTest): Promise<void> {
+async function test_full_login(input: inputTest, output: outputTest): Promise<boolean> {
     expect(output.record).toBeDefined()
     expect(output.export_key).toBeDefined()
 
@@ -197,12 +199,14 @@ async function test_full_login(input: inputTest, output: outputTest): Promise<vo
 
     // At the end, server and client MUST arrive to the same session key.
     expect(session_key_client).toStrictEqual(session_key_server)
+
+    return true
 }
 
 describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521])(
     'full',
     (opaqueID: OpaqueID) => {
-        const cfg = getOpaqueConfig(opaqueID)
+        const cfg = new OpaqueConfig(opaqueID)
 
         describe(`${cfg.toString()}`, () => {
             let input: inputTest = {} as unknown as inputTest
@@ -223,9 +227,11 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
                 output = {}
             })
 
-            test('Opaque-full-registration', () => test_full_registration(input, output))
+            test('Opaque-full-registration', async () =>
+                expect(await test_full_registration(input, output)).toBe(true))
 
-            test('Opaque-full-login', () => test_full_login(input, output))
+            test('Opaque-full-login', async () =>
+                expect(await test_full_login(input, output)).toBe(true))
         })
     }
 )
