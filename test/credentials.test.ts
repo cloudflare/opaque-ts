@@ -8,14 +8,14 @@ import {
     Config,
     CredentialFile,
     OpaqueClient,
+    OpaqueConfig,
     OpaqueID,
     OpaqueServer,
     RegistrationClient,
     RegistrationRecord,
     RegistrationRequest,
     RegistrationResponse,
-    RegistrationServer,
-    getOpaqueConfig
+    RegistrationServer
 } from '../src/index.js'
 
 import { KVStorage } from './common.js'
@@ -36,7 +36,7 @@ interface outputTest {
     export_key?: Uint8Array
 }
 
-async function test_credentials(input: inputTest, output: outputTest): Promise<void> {
+async function test_credentials(input: inputTest, output: outputTest): Promise<boolean> {
     // Setup
     const { cfg, password, server_identity, client_identity, credential_identifier, database } =
         input
@@ -95,12 +95,14 @@ async function test_credentials(input: inputTest, output: outputTest): Promise<v
     expect(export_key).toBe(export_key)
     expect(database).toBe(database)
     expect(output).toBe(output)
+
+    return true
 }
 
 describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521])(
     'full',
     (opaqueID: OpaqueID) => {
-        const cfg = getOpaqueConfig(opaqueID)
+        const cfg = new OpaqueConfig(opaqueID)
 
         describe(`${cfg.toString()}`, () => {
             let input: inputTest = {} as unknown as inputTest
@@ -121,7 +123,8 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
                 output = {}
             })
 
-            test('Opaque-credentials', () => test_credentials(input, output))
+            test('Opaque-credentials', async () =>
+                expect(await test_credentials(input, output)).toBe(true))
         })
     }
 )
