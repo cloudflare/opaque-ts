@@ -5,7 +5,7 @@
 
 import { ctEqual, joinAll } from './util.js'
 
-import { scrypt } from '@noble/hashes/lib/scrypt'
+import { scrypt } from '@noble/hashes/scrypt'
 
 export interface PrngFn {
     random(numBytes: number): number[]
@@ -116,6 +116,9 @@ export class Hkdf implements KDFFn {
     }
 
     async extract(salt: Uint8Array, ikm: Uint8Array): Promise<Uint8Array> {
+        if (salt.length === 0) {
+            salt = new Uint8Array(this.Nx)
+        }
         return (await new Hmac(this.hash).with_key(salt)).sign(ikm)
     }
 
@@ -135,14 +138,14 @@ export class Hkdf implements KDFFn {
     }
 }
 
-export interface MemoryHardFn {
+export interface KSFFn {
     readonly name: string
     readonly harden: (input: Uint8Array) => Uint8Array
 }
 
-export const IdentityMemHardFn: MemoryHardFn = { name: 'Identity', harden: (x) => x } as const
+export const IdentityKSFFn: KSFFn = { name: 'Identity', harden: (x) => x } as const
 
-export const ScryptMemHardFn: MemoryHardFn = {
+export const ScryptKSFFn: KSFFn = {
     name: 'scrypt',
     harden: (msg: Uint8Array): Uint8Array => scrypt(msg, new Uint8Array(), { N: 32768, r: 8, p: 1 })
 } as const
@@ -168,7 +171,7 @@ export interface AKEFn {
 export interface OPRFFn {
     readonly Noe: number // Noe: The size of a serialized OPRF group element.
     readonly hash: string // hash: Name of the hash function used.
-    readonly id: number // id: Identifier of the OPRF.
+    readonly id: string // id: Identifier of the OPRF.
     readonly name: string // name: Name of the OPRF function.
     blind(input: Uint8Array): Promise<{ blind: Uint8Array; blindedElement: Uint8Array }>
     evaluate(key: Uint8Array, blinded: Uint8Array): Promise<Uint8Array>

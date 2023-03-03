@@ -11,7 +11,7 @@ import {
     RegistrationRequest,
     RegistrationResponse
 } from './messages.js'
-import { MemoryHardFn, ScryptMemHardFn } from './thecrypto.js'
+import { KSFFn, ScryptKSFFn } from './thecrypto.js'
 
 import { AKE3DHClient } from './3dh_client.js'
 import { Config } from './config.js'
@@ -56,7 +56,7 @@ export class OpaqueClient implements RegistrationClient, AuthClient {
         LOG_STARTED: 2
     } as const
 
-    private status: typeof OpaqueClient.States[keyof typeof OpaqueClient.States]
+    private status: (typeof OpaqueClient.States)[keyof typeof OpaqueClient.States]
 
     private ke1?: KE1
 
@@ -68,9 +68,9 @@ export class OpaqueClient implements RegistrationClient, AuthClient {
 
     private readonly ake: AKE3DHClient
 
-    constructor(public readonly config: Config, memHard: MemoryHardFn = ScryptMemHardFn) {
+    constructor(public readonly config: Config, ksf: KSFFn = ScryptKSFFn) {
         this.status = OpaqueClient.States.NEW
-        this.opaque_core = new OpaqueCoreClient(config, memHard)
+        this.opaque_core = new OpaqueCoreClient(config, ksf)
         this.ake = new AKE3DHClient(this.config)
     }
 
