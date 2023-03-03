@@ -7,6 +7,6 @@
     "setupFiles": [
         "./test/jest.setup-file.mjs"
     ],
-    "collectCoverage": true,
+    "collectCoverage": false,
     "verbose": true
 }

@@ -5,7 +5,7 @@
 
 import { ctEqual, joinAll } from './util.js'
 
-import { scrypt } from '@noble/hashes/lib/scrypt'
+import { scrypt } from '@noble/hashes/scrypt'
 
 export interface PrngFn {
     random(numBytes: number): number[]
@@ -88,7 +88,7 @@ export class Hmac implements MACFn {
     }
 
     private static Macops = class implements MACOps {
-        constructor(private readonly crypto_key: CryptoKey) {}
+        constructor(private readonly crypto_key: CryptoKey) { }
 
         async sign(msg: Uint8Array): Promise<Uint8Array> {
             return new Uint8Array(
@@ -116,6 +116,9 @@ export class Hkdf implements KDFFn {
     }
 
     async extract(salt: Uint8Array, ikm: Uint8Array): Promise<Uint8Array> {
+        if (salt.length === 0) {
+            salt = new Uint8Array(this.Nx)
+        }
         return (await new Hmac(this.hash).with_key(salt)).sign(ikm)
     }
 
