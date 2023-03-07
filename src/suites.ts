@@ -3,19 +3,19 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { AKE3DH, OPRFBaseMode } from './common.js'
+import { AKE3DH, Err, OPRFBaseMode, Ok, Result } from './common.js'
 import { AKEFn, Hash, HashFn, Hkdf, Hmac, KDFFn, MACFn, OPRFFn, Prng, PrngFn } from './thecrypto.js'
+import { Oprf, SuiteID } from '@cloudflare/voprf-ts'
 
 import { Config } from './config.js'
-import { OprfID } from '@cloudflare/voprf-ts'
 
-export enum OpaqueID { // eslint-disable-line no-shadow
-    OPAQUE_P256 = 3,
-    OPAQUE_P384 = 4,
-    OPAQUE_P521 = 5
+export enum OpaqueID {
+    OPAQUE_P256 = 'P256-SHA256',
+    OPAQUE_P384 = 'P384-SHA384',
+    OPAQUE_P521 = 'P521-SHA512'
 }
 
-class OpaqueConfig implements Config {
+export class OpaqueConfig implements Config {
     readonly constants: {
         readonly Nn: number
         readonly Nseed: number
@@ -34,19 +34,19 @@ class OpaqueConfig implements Config {
     readonly ake: AKEFn
 
     constructor(public readonly opaqueID: OpaqueID) {
-        let oprfID: OprfID = 0
+        let oprfID: SuiteID
         switch (opaqueID) {
             case OpaqueID.OPAQUE_P256:
-                oprfID = OprfID.OPRF_P256_SHA256
+                oprfID = Oprf.Suite.P256_SHA256
                 break
             case OpaqueID.OPAQUE_P384:
-                oprfID = OprfID.OPRF_P384_SHA384
+                oprfID = Oprf.Suite.P384_SHA384
                 break
             case OpaqueID.OPAQUE_P521:
-                oprfID = OprfID.OPRF_P521_SHA512
+                oprfID = Oprf.Suite.P521_SHA512
                 break
             default:
-                throw new Error('invalid opaque id')
+                throw new Error(`invalid OpaqueID ${opaqueID}`)
         }
 
         this.constants = { Nn: 32, Nseed: 32 }
@@ -55,18 +55,17 @@ class OpaqueConfig implements Config {
         this.hash = new Hash(this.oprf.hash)
         this.mac = new Hmac(this.hash.name)
         this.kdf = new Hkdf(this.hash.name)
-        this.ake = new AKE3DH(this.oprf.id)
+        this.ake = new AKE3DH(oprfID)
+    }
+
+    static fromString(opaqueID: string): Result<Readonly<Config>, Error> {
+        if (!Object.values<string>(OpaqueID).includes(opaqueID)) {
+            return Err(new Error(`OpaqueID ${opaqueID} not supported`))
+        }
+        return Ok(new OpaqueConfig(opaqueID as OpaqueID))
     }
 
     toString(): string {
-        return (
-            `${OpaqueID[this.opaqueID]} = {` +
-            `OPRF: ${this.oprf.name}, ` +
-            `Hash: ${this.hash.name}}`
-        )
+        return `${this.opaqueID} = {` + `OPRF: ${this.oprf.name}, ` + `Hash: ${this.hash.name}}`
     }
-}
-
-export function getOpaqueConfig(opaqueID: number | OpaqueID): Readonly<Config> {
-    return new OpaqueConfig(opaqueID)
 }
