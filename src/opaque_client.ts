@@ -58,8 +58,6 @@ export class OpaqueClient implements RegistrationClient, AuthClient {
 
     private status: (typeof OpaqueClient.States)[keyof typeof OpaqueClient.States]
 
-    private ke1?: KE1
-
     private blind?: Uint8Array
 
     private password?: Uint8Array
@@ -68,7 +66,10 @@ export class OpaqueClient implements RegistrationClient, AuthClient {
 
     private readonly ake: AKE3DHClient
 
-    constructor(public readonly config: Config, ksf: KSFFn = ScryptKSFFn) {
+    constructor(
+        public readonly config: Config,
+        ksf: KSFFn = ScryptKSFFn
+    ) {
         this.status = OpaqueClient.States.NEW
         this.opaque_core = new OpaqueCoreClient(config, ksf)
         this.ake = new AKE3DHClient(this.config)
@@ -79,9 +80,8 @@ export class OpaqueClient implements RegistrationClient, AuthClient {
             return new Error('client not ready')
         }
         const password_uint8array = new TextEncoder().encode(password)
-        const { request, blind } = await this.opaque_core.createRegistrationRequest(
-            password_uint8array
-        )
+        const { request, blind } =
+            await this.opaque_core.createRegistrationRequest(password_uint8array)
         this.blind = blind
         this.password = password_uint8array
         this.status = OpaqueClient.States.REG_STARTED
@@ -107,9 +107,7 @@ export class OpaqueClient implements RegistrationClient, AuthClient {
             return new Error('client not ready')
         }
         const te = new TextEncoder()
-        // eslint-disable-next-line no-undefined
         const server_identity_u8array = server_identity ? te.encode(server_identity) : undefined
-        // eslint-disable-next-line no-undefined
         const client_identity_u8array = client_identity ? te.encode(client_identity) : undefined
         const out = await this.opaque_core.finalizeRequest(
             this.password,
@@ -128,12 +126,10 @@ export class OpaqueClient implements RegistrationClient, AuthClient {
         }
         const password_u8array = new TextEncoder().encode(password)
         const { request, blind } = await this.opaque_core.createCredentialRequest(password_u8array)
-        const auth_init = await this.ake.start()
-        const ke1 = new KE1(request, auth_init)
+        const ke1 = await this.ake.start(request)
 
         this.blind = blind
         this.password = password_u8array
-        this.ke1 = ke1
         this.status = OpaqueClient.States.LOG_STARTED
 
         return ke1
@@ -155,22 +151,19 @@ export class OpaqueClient implements RegistrationClient, AuthClient {
         if (
             this.status !== OpaqueClient.States.LOG_STARTED ||
             typeof this.password === 'undefined' ||
-            typeof this.blind === 'undefined' ||
-            typeof this.ke1 === 'undefined'
+            typeof this.blind === 'undefined'
         ) {
             return new Error('client not ready')
         }
 
         const te = new TextEncoder()
-        // eslint-disable-next-line no-undefined
         const server_identity_u8array = server_identity ? te.encode(server_identity) : undefined
-        // eslint-disable-next-line no-undefined
         const client_identity_u8array = client_identity ? te.encode(client_identity) : undefined
         const context_u8array = context ? te.encode(context) : new Uint8Array(0)
         const rec = await this.opaque_core.recoverCredentials(
             this.password,
             this.blind,
-            ke2.response,
+            ke2.credential_response,
             server_identity_u8array,
             client_identity_u8array
         )
@@ -184,7 +177,6 @@ export class OpaqueClient implements RegistrationClient, AuthClient {
             client_ake_keypair.private_key,
             server_identity_u8array ? server_identity_u8array : server_public_key,
             server_public_key,
-            this.ke1,
             ke2,
             context_u8array
         )
@@ -202,6 +194,5 @@ export class OpaqueClient implements RegistrationClient, AuthClient {
         this.status = OpaqueClient.States.NEW
         this.password = undefined // eslint-disable-line no-undefined
         this.blind = undefined // eslint-disable-line no-undefined
-        this.ke1 = undefined // eslint-disable-line no-undefined
     }
 }

@@ -19,7 +19,10 @@ import { LABELS } from './common.js'
 export class OpaqueCoreServer {
     oprf_seed: Uint8Array
 
-    constructor(public readonly config: Config, oprf_seed: Uint8Array) {
+    constructor(
+        public readonly config: Config,
+        oprf_seed: Uint8Array
+    ) {
         this.oprf_seed = checked_vector(oprf_seed, config.hash.Nh)
     }
 

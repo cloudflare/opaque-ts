@@ -206,7 +206,7 @@ export class RegistrationRecord extends Serializable {
 
     static async createFake(cfg: Config): Promise<RegistrationRecord> {
         const seed = cfg.prng.random(cfg.constants.Nseed)
-        const { public_key: client_public_key } = await cfg.ake.deriveAuthKeyPair(
+        const { public_key: client_public_key } = await cfg.ake.deriveDHKeyPair(
             new Uint8Array(seed)
         )
         const masking_key = new Uint8Array(cfg.prng.random(cfg.hash.Nh))
@@ -360,27 +360,27 @@ export class CredentialFile extends Serializable {
     }
 }
 
-export class AuthInit extends Serializable {
+export class AuthRequest extends Serializable {
     client_nonce: Uint8Array
 
-    client_keyshare: Uint8Array
+    client_public_keyshare: Uint8Array
 
-    constructor(cfg: Config, client_nonce: Uint8Array, client_keyshare: Uint8Array) {
-        Serializable.check_uint8arrays([client_nonce, client_keyshare])
+    constructor(cfg: Config, client_nonce: Uint8Array, client_public_keyshare: Uint8Array) {
+        Serializable.check_uint8arrays([client_nonce, client_public_keyshare])
         super()
         this.client_nonce = checked_vector(client_nonce, cfg.constants.Nn)
-        this.client_keyshare = checked_vector(client_keyshare, cfg.ake.Npk)
+        this.client_public_keyshare = checked_vector(client_public_keyshare, cfg.ake.Npk)
     }
 
     serialize(): number[] {
-        return Array.from(joinAll([this.client_nonce, this.client_keyshare]))
+        return Array.from(joinAll([this.client_nonce, this.client_public_keyshare]))
     }
 
     static sizeSerialized(cfg: Config): number {
         return cfg.constants.Nn + cfg.ake.Npk
     }
 
-    static deserialize(cfg: Config, bytes: number[]): AuthInit {
+    static deserialize(cfg: Config, bytes: number[]): AuthRequest {
         const u8array = this.checked_bytes_to_uint8array(cfg, bytes)
 
         let start = 0
@@ -389,34 +389,36 @@ export class AuthInit extends Serializable {
 
         start = end
         end += cfg.ake.Npk
-        const client_keyshare = u8array.slice(start, end)
+        const client_public_keyshare = u8array.slice(start, end)
 
-        return new AuthInit(cfg, client_nonce, client_keyshare)
+        return new AuthRequest(cfg, client_nonce, client_public_keyshare)
     }
 }
 
 export class AuthResponse extends Serializable {
     server_nonce: Uint8Array
 
-    server_keyshare: Uint8Array
+    server_public_keyshare: Uint8Array
 
     server_mac: Uint8Array
 
     constructor(
         cfg: Config,
         server_nonce: Uint8Array,
-        server_keyshare: Uint8Array,
+        server_public_keyshare: Uint8Array,
         server_mac: Uint8Array
     ) {
-        Serializable.check_uint8arrays([server_nonce, server_keyshare, server_mac])
+        Serializable.check_uint8arrays([server_nonce, server_public_keyshare, server_mac])
         super()
         this.server_nonce = checked_vector(server_nonce, cfg.constants.Nn)
-        this.server_keyshare = checked_vector(server_keyshare, cfg.ake.Npk)
+        this.server_public_keyshare = checked_vector(server_public_keyshare, cfg.ake.Npk)
         this.server_mac = checked_vector(server_mac, cfg.mac.Nm)
     }
 
     serialize(): number[] {
-        return Array.from(joinAll([this.server_nonce, this.server_keyshare, this.server_mac]))
+        return Array.from(
+            joinAll([this.server_nonce, this.server_public_keyshare, this.server_mac])
+        )
     }
 
     static sizeSerialized(cfg: Config): number {
@@ -432,13 +434,13 @@ export class AuthResponse extends Serializable {
 
         start = end
         end += cfg.ake.Npk
-        const server_keyshare = u8array.slice(start, end)
+        const server_public_keyshare = u8array.slice(start, end)
 
         start = end
         end += cfg.mac.Nm
         const server_mac = u8array.slice(start, end)
 
-        return new AuthResponse(cfg, server_nonce, server_keyshare, server_mac)
+        return new AuthResponse(cfg, server_nonce, server_public_keyshare, server_mac)
     }
 }
 
@@ -505,39 +507,45 @@ export class ExpectedAuthResult extends Serializable {
 }
 
 export class KE1 extends Serializable {
-    constructor(public request: CredentialRequest, public auth_init: AuthInit) {
+    constructor(
+        public credential_request: CredentialRequest,
+        public auth_request: AuthRequest
+    ) {
         super()
     }
 
     serialize(): number[] {
-        return [...this.request.serialize(), ...this.auth_init.serialize()]
+        return [...this.credential_request.serialize(), ...this.auth_request.serialize()]
     }
 
     static sizeSerialized(cfg: Config): number {
-        return CredentialRequest.sizeSerialized(cfg) + AuthInit.sizeSerialized(cfg)
+        return CredentialRequest.sizeSerialized(cfg) + AuthRequest.sizeSerialized(cfg)
     }
 
     static deserialize(cfg: Config, bytes: number[]): KE1 {
         this.checked_bytes_to_uint8array(cfg, bytes)
         let start = 0
         let end = CredentialRequest.sizeSerialized(cfg)
-        const request = CredentialRequest.deserialize(cfg, bytes.slice(start, end))
+        const credential_request = CredentialRequest.deserialize(cfg, bytes.slice(start, end))
 
         start = end
-        end += AuthInit.sizeSerialized(cfg)
-        const auth_init = AuthInit.deserialize(cfg, bytes.slice(start, end))
+        end += AuthRequest.sizeSerialized(cfg)
+        const auth_request = AuthRequest.deserialize(cfg, bytes.slice(start, end))
 
-        return new KE1(request, auth_init)
+        return new KE1(credential_request, auth_request)
     }
 }
 
 export class KE2 extends Serializable {
-    constructor(public response: CredentialResponse, public auth_response: AuthResponse) {
+    constructor(
+        public credential_response: CredentialResponse,
+        public auth_response: AuthResponse
+    ) {
         super()
     }
 
     serialize(): number[] {
-        return [...this.response.serialize(), ...this.auth_response.serialize()]
+        return [...this.credential_response.serialize(), ...this.auth_response.serialize()]
     }
 
     static sizeSerialized(cfg: Config): number {
@@ -548,13 +556,13 @@ export class KE2 extends Serializable {
         this.checked_bytes_to_uint8array(cfg, bytes)
         let start = 0
         let end = CredentialResponse.sizeSerialized(cfg)
-        const response = CredentialResponse.deserialize(cfg, bytes.slice(start, end))
+        const credential_response = CredentialResponse.deserialize(cfg, bytes.slice(start, end))
 
         start = end
         end += AuthResponse.sizeSerialized(cfg)
         const auth_response = AuthResponse.deserialize(cfg, bytes.slice(start, end))
 
-        return new KE2(response, auth_response)
+        return new KE2(credential_response, auth_response)
     }
 }
 

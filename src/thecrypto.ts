@@ -163,9 +163,7 @@ export interface AKEExportKeyPair {
 export interface AKEFn {
     readonly Nsk: number // Nsk: The size of AKE private keys.
     readonly Npk: number // Npk: The size of AKE public keys.
-    deriveAuthKeyPair(seed: Uint8Array): Promise<AKEKeyPair>
-    recoverPublicKey(private_key: Uint8Array): AKEKeyPair
-    generateAuthKeyPair(): Promise<AKEExportKeyPair>
+    deriveDHKeyPair(seed: Uint8Array): Promise<AKEKeyPair>
 }
 
 export interface OPRFFn {

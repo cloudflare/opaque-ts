@@ -109,7 +109,8 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
             let output: outputTest = {}
 
             beforeAll(async () => {
-                const server_ake_keypair = await cfg.ake.generateAuthKeyPair()
+                const seed = Uint8Array.from(cfg.prng.random(cfg.constants.Nseed))
+                const server_ake_keypair = await cfg.ake.deriveDHKeyPair(seed)
                 input = {
                     cfg,
                     database: new KVStorage(),
@@ -118,7 +119,10 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
                     server_identity: 'server.opaque.example.com',
                     credential_identifier: 'client_identifier_defined_by_server',
                     oprf_seed: cfg.prng.random(cfg.hash.Nh),
-                    server_ake_keypair
+                    server_ake_keypair: {
+                        private_key: Array.from(server_ake_keypair.private_key),
+                        public_key: Array.from(server_ake_keypair.public_key)
+                    }
                 }
                 output = {}
             })

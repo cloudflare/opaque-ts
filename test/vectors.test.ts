@@ -4,7 +4,6 @@
 // at https://opensource.org/licenses/BSD-3-Clause
 
 import {
-    AKE3DH,
     AuthClient,
     AuthServer,
     Config,
@@ -56,24 +55,23 @@ interface Configuration {
 interface Inputs {
     blind_login: string
     blind_registration: string
-    client_identity: string | undefined
-    client_keyshare: string
+    client_identity?: string
+    client_keyshare_seed: string
     client_nonce: string
-    client_public_key: string | undefined
-    client_private_key: string | undefined
-    client_private_keyshare: string
+    client_private_key?: string
+    client_public_key?: string
     credential_identifier: string
     envelope_nonce: string
     masking_nonce: string
-    masking_key: string | undefined
+    masking_key?: string
     oprf_seed: string
     password: string
-    server_identity: string | undefined
-    server_keyshare: string
+    server_identity?: string
+    server_keyshare_seed: string
     server_nonce: string
     server_private_key: string
-    server_private_keyshare: string
     server_public_key: string
+    KE1?: string
 }
 
 interface Intermediates {
@@ -84,7 +82,7 @@ interface Intermediates {
     handshake_secret: string
     masking_key: string
     oprf_key: string
-    randomized_pwd: string
+    randomized_password: string
     server_mac_key: string
 }
 
@@ -111,37 +109,27 @@ async function createMocks(vector: Vector, cfg: Config, isFake: boolean) {
             const scalar = group.desScalar(blind)
             return Promise.resolve(scalar)
         })
-    }
-    jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(() => {
-        const blind = notNullHex(vector.inputs.blind_login)
-        const group = Oprf.getGroup(cfg.oprf.id as SuiteID)
-        const scalar = group.desScalar(blind)
-        return Promise.resolve(scalar)
-    })
 
-    jest.spyOn(AKE3DH.prototype, 'generateAuthKeyPair')
-        .mockResolvedValueOnce({
-            private_key: Array.from(notNullHex(vector.inputs.client_private_keyshare)),
-            public_key: Array.from(notNullHex(vector.inputs.client_keyshare))
-        })
-        .mockResolvedValueOnce({
-            private_key: Array.from(notNullHex(vector.inputs.server_private_keyshare)),
-            public_key: Array.from(notNullHex(vector.inputs.server_keyshare))
+        jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(() => {
+            const blind = notNullHex(vector.inputs.blind_login)
+            const group = Oprf.getGroup(cfg.oprf.id as SuiteID)
+            const scalar = group.desScalar(blind)
+            return Promise.resolve(scalar)
         })
 
-    if (!isFake) {
-        jest.spyOn(crypto, 'getRandomValues').mockReturnValueOnce(
-            notNullHex(vector.inputs.envelope_nonce)
-        )
+        jest.spyOn(crypto, 'getRandomValues')
+            .mockReturnValueOnce(notNullHex(vector.inputs.envelope_nonce))
+            .mockReturnValueOnce(notNullHex(vector.inputs.client_nonce))
+            .mockReturnValueOnce(notNullHex(vector.inputs.client_keyshare_seed))
     }
+
     jest.spyOn(crypto, 'getRandomValues')
-        .mockReturnValueOnce(notNullHex(vector.inputs.client_nonce))
         .mockReturnValueOnce(notNullHex(vector.inputs.masking_nonce))
         .mockReturnValueOnce(notNullHex(vector.inputs.server_nonce))
+        .mockReturnValueOnce(notNullHex(vector.inputs.server_keyshare_seed))
 }
 
 interface inputsRaw {
-    isFake: boolean
     password: string
     credential_identifier: string
     server_private_key: Uint8Array
@@ -157,6 +145,7 @@ interface inputsRaw {
 interface inputsRawOpt {
     client_identity?: string
     server_identity?: string
+    ke1?: Uint8Array
 }
 
 function getTestInputs(vector: Vector): inputsRaw & inputsRawOpt {
@@ -167,9 +156,11 @@ function getTestInputs(vector: Vector): inputsRaw & inputsRawOpt {
     if (vector.inputs.server_identity) {
         opt.server_identity = fromHexString(vector.inputs.server_identity)
     }
+    if (vector.inputs.KE1) {
+        opt.ke1 = fromHex(vector.inputs.KE1)
+    }
 
     return {
-        isFake: vector.config.Fake === 'True',
         client_private_key: notNullHex(vector.inputs.client_private_key),
         client_public_key: notNullHex(vector.inputs.client_public_key),
         server_private_key: fromHex(vector.inputs.server_private_key),
@@ -216,7 +207,7 @@ async function test_fake_registration(input: inputTest, _vector: Vector): Promis
     return true
 }
 
-async function test_full_registration(input: inputTest, vector: Vector): Promise<boolean> {
+async function test_real_registration(input: inputTest, vector: Vector): Promise<boolean> {
     // Setup
     const {
         cfg,
@@ -286,16 +277,87 @@ async function test_full_registration(input: inputTest, vector: Vector): Promise
     return true
 }
 
-async function test_full_login(input: inputTest, vector: Vector): Promise<boolean> {
+async function test_fake_login(input: inputTest, vector: Vector): Promise<boolean> {
     // Setup
     const {
         cfg,
         context,
-        password,
         server_identity,
         client_identity,
         credential_identifier,
         database,
+        ke1: ser_ke1
+    } = input
+    const { server_private_key, server_public_key, oprf_seed } = input
+
+    if (!ser_ke1) {
+        throw new Error('KE1 is not present')
+    }
+
+    // Server
+    const credFileBytes = database.lookup(credential_identifier)
+    expect(credFileBytes).not.toBe(false)
+
+    if (credFileBytes === false) {
+        throw new Error('client not registered in database')
+    }
+
+    const credential_file = CredentialFile.deserialize(cfg, Array.from(credFileBytes))
+    expect(credential_file.credential_identifier).toBe(credential_identifier)
+    expect(credential_file.client_identity).toBe(client_identity)
+
+    const server: AuthServer = new OpaqueServer(
+        cfg,
+        Array.from(oprf_seed),
+        {
+            private_key: Array.from(server_private_key),
+            public_key: Array.from(server_public_key)
+        },
+        server_identity
+    )
+
+    const ke1 = KE1.deserialize(cfg, Array.from(ser_ke1))
+    const ke2 = await server.authInit(
+        ke1,
+        credential_file.record,
+        credential_file.credential_identifier,
+        credential_file.client_identity,
+        context
+    )
+    expect(ke2).not.toBeInstanceOf(Error)
+    if (ke2 instanceof Error) {
+        throw new Error('server failed to authInit')
+    }
+    const ser_ke2 = Uint8Array.from(ke2.serialize())
+    expect(toHex(ser_ke2)).toBe(vector.outputs.KE2)
+
+    // Client           ke2          Server
+    //           <<<-------------
+
+    // Client
+    // [TODO] We must check that the client tries to complete the
+    // protocol and fails.
+    //
+    // const deser_ke2 = KE2.deserialize(cfg, Array.from(ser_ke2))
+    // const finClient = await client.authFinish(deser_ke2, server_identity, client_identity, context)
+
+    // if (finClient instanceof Error) {
+    //     expect(finClient.message).toBe('EnvelopeRecoveryError')
+    // }
+
+    return true
+}
+
+async function test_real_login(input: inputTest, vector: Vector): Promise<boolean> {
+    // Setup
+    const {
+        cfg,
+        context,
+        server_identity,
+        client_identity,
+        credential_identifier,
+        database,
+        password,
         ksf
     } = input
     const { server_private_key, server_public_key, oprf_seed } = input
@@ -334,18 +396,17 @@ async function test_full_login(input: inputTest, vector: Vector): Promise<boolea
         server_identity
     )
     const deser_ke1 = KE1.deserialize(cfg, ser_ke1)
-    const ret_auth_init = await server.authInit(
+    const ke2 = await server.authInit(
         deser_ke1,
         credential_file.record,
         credential_file.credential_identifier,
         credential_file.client_identity,
         context
     )
-    expect(ret_auth_init).not.toBeInstanceOf(Error)
-    if (ret_auth_init instanceof Error) {
+    expect(ke2).not.toBeInstanceOf(Error)
+    if (ke2 instanceof Error) {
         throw new Error('server failed to authInit')
     }
-    const { ke2, expected } = ret_auth_init
     const ser_ke2 = Uint8Array.from(ke2.serialize())
     expect(toHex(ser_ke2)).toBe(vector.outputs.KE2)
     // Client           ke2          Server
@@ -354,13 +415,6 @@ async function test_full_login(input: inputTest, vector: Vector): Promise<boolea
     // Client
     const deser_ke2 = KE2.deserialize(cfg, Array.from(ser_ke2))
     const finClient = await client.authFinish(deser_ke2, server_identity, client_identity, context)
-
-    if (finClient instanceof Error) {
-        expect(input.isFake).toBe(true)
-        expect(finClient.message).toBe('EnvelopeRecoveryError')
-        return true
-    }
-    expect(input.isFake).toBe(false)
     expect(finClient).not.toBeInstanceOf(Error)
     if (finClient instanceof Error) {
         throw new Error('client failed to authFinish')
@@ -374,7 +428,7 @@ async function test_full_login(input: inputTest, vector: Vector): Promise<boolea
 
     // Server
     const deser_ke3 = KE3.deserialize(cfg, Array.from(ser_ke3))
-    const finServer = server.authFinish(deser_ke3, expected)
+    const finServer = server.authFinish(deser_ke3)
     expect(finServer).not.toBeInstanceOf(Error)
     if (finServer instanceof Error) {
         throw new Error('server failed to authenticate user')
@@ -386,7 +440,7 @@ async function test_full_login(input: inputTest, vector: Vector): Promise<boolea
 }
 
 function read_test_vectors(): Array<Vector> {
-    const filename = './test/testdata/vectors_v09.json.gz'
+    const filename = './test/testdata/vectors_v16.json.gz'
     try {
         const file = readFileSync(filename)
         const json = unzipSync(file)
@@ -402,10 +456,18 @@ describe.each(read_test_vectors())('test-vector-$#', (vector: Vector) => {
     const opaqueID = vector.config.OPRF
     const res = OpaqueConfig.fromString(opaqueID)
     const describe_or_skip = isOk(res) ? describe : describe.skip
-    const isFake = vector.config.Fake === 'True'
-    const label = isFake ? '-fake' : ''
 
-    describe_or_skip(`${opaqueID}${label}`, () => {
+    describe_or_skip(`${opaqueID}`, () => {
+        const isFake = vector.config.Fake === 'True'
+        let label = 'real'
+        let test_registration = test_real_registration
+        let test_login = test_real_login
+        if (isFake) {
+            label = 'fake'
+            test_registration = test_fake_registration
+            test_login = test_fake_login
+        }
+
         let cfg: Config
         let input: inputTest
 
@@ -423,16 +485,12 @@ describe.each(read_test_vectors())('test-vector-$#', (vector: Vector) => {
             expect(input.ksf.name).toBe(vector.config.KSF)
         })
 
-        const test_registration = isFake ? test_fake_registration : test_full_registration
-
-        test('Opaque-registration' + label, async () => {
-            const registration_ok = await test_registration(input, vector)
-            expect(registration_ok).toBe(true)
+        test('Opaque-registration-' + label, async () => {
+            expect(await test_registration(input, vector)).toBe(true)
         })
 
-        test('Opaque-login', async () => {
-            const login_ok = await test_full_login(input, vector)
-            expect(login_ok).toBe(true)
+        test('Opaque-login-' + label, async () => {
+            expect(await test_login(input, vector)).toBe(true)
         })
     })
 })

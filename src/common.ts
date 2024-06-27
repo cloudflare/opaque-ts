@@ -3,7 +3,7 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { AKEExportKeyPair, AKEFn, AKEKeyPair, OPRFFn } from './thecrypto.js'
+import { AKEFn, AKEKeyPair, OPRFFn } from './thecrypto.js'
 import {
     Evaluation,
     EvaluationRequest,
@@ -13,11 +13,9 @@ import {
     Oprf,
     SuiteID,
     deriveKeyPair,
-    generatePublicKey,
-    getKeySizes,
-    randomPrivateKey
+    getKeySizes
 } from '@cloudflare/voprf-ts'
-import { KE1, KE2 } from './messages.js'
+import { CredentialResponse, KE1 } from './messages.js'
 import { encode_number, encode_vector_16, encode_vector_8, joinAll } from './util.js'
 
 import { Config } from './config.js'
@@ -50,13 +48,13 @@ export const LABELS = {
     HandshakeSecret: encStr('HandshakeSecret'),
     MaskingKey: encStr('MaskingKey'),
     OPAQUE: encStr('OPAQUE-'),
-    OPAQUE_DeriveAuthKeyPair: encStr('OPAQUE-DeriveAuthKeyPair'),
+    OPAQUE_DeriveDHKeyPair: encStr('OPAQUE-DeriveDiffieHellmanKeyPair'),
     OPAQUE_DeriveKeyPair: encStr('OPAQUE-DeriveKeyPair'),
     OprfKey: encStr('OprfKey'),
     PrivateKey: encStr('PrivateKey'),
-    RFC: encStr('RFCXXXX'),
     ServerMAC: encStr('ServerMAC'),
-    SessionKey: encStr('SessionKey')
+    SessionKey: encStr('SessionKey'),
+    Version: encStr('OPAQUEv1-')
 } as const
 
 export class OPRFBaseMode implements OPRFFn {
@@ -140,21 +138,23 @@ function deriveSecret(
 }
 
 export function preambleBuild(
-    ke1: KE1,
-    ke2: KE2,
-    server_identity: Uint8Array,
     client_identity: Uint8Array,
+    ke1: KE1,
+    server_identity: Uint8Array,
+    credential_response: CredentialResponse,
+    server_nonce: Uint8Array,
+    server_public_keyshare: Uint8Array,
     context: Uint8Array
 ): Uint8Array {
     return joinAll([
-        Uint8Array.from(LABELS.RFC),
+        Uint8Array.from(LABELS.Version),
         encode_vector_16(context),
         encode_vector_16(client_identity),
         Uint8Array.from(ke1.serialize()),
         encode_vector_16(server_identity),
-        Uint8Array.from(ke2.response.serialize()),
-        ke2.auth_response.server_nonce,
-        ke2.auth_response.server_keyshare
+        Uint8Array.from(credential_response.serialize()),
+        server_nonce,
+        server_public_keyshare
     ])
 }
 
@@ -226,26 +226,26 @@ export class AKE3DH implements AKEFn {
         this.Nsk = Nsk
     }
 
-    async deriveAuthKeyPair(seed: Uint8Array): Promise<AKEKeyPair> {
+    async deriveDHKeyPair(seed: Uint8Array): Promise<AKEKeyPair> {
         const keypair = await deriveKeyPair(
             Oprf.Mode.OPRF,
             this.suiteID,
             seed,
-            Uint8Array.from(LABELS.OPAQUE_DeriveAuthKeyPair)
+            Uint8Array.from(LABELS.OPAQUE_DeriveDHKeyPair)
         )
         return { private_key: keypair.privateKey, public_key: keypair.publicKey }
     }
 
-    recoverPublicKey(private_key: Uint8Array): AKEKeyPair {
-        const public_key = generatePublicKey(this.suiteID, private_key)
-        return { private_key, public_key }
-    }
+    // recoverPublicKey(private_key: Uint8Array): AKEKeyPair {
+    //     const public_key = generatePublicKey(this.suiteID, private_key)
+    //     return { private_key, public_key }
+    // }
 
-    async generateAuthKeyPair(): Promise<AKEExportKeyPair> {
-        const keypair = this.recoverPublicKey(await randomPrivateKey(this.suiteID))
-        return {
-            private_key: Array.from(keypair.private_key),
-            public_key: Array.from(keypair.public_key)
-        }
-    }
+    // async generateAuthKeyPair(): Promise<AKEExportKeyPair> {
+    //     const keypair = this.recoverPublicKey(await randomPrivateKey(this.suiteID))
+    //     return {
+    //         private_key: Array.from(keypair.private_key),
+    //         public_key: Array.from(keypair.public_key)
+    //     }
+    // }
 }
