@@ -24,8 +24,6 @@ jobs:
           cache: 'npm'
       - name: Install NPM dependencies
         run: npm ci
-      - name: Format files
-        run: npm run check-format
       - name: Linter
         run: npm run lint
       - name: Building

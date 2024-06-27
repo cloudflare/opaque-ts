@@ -25,7 +25,7 @@
     "homepage": "https://github.com/cloudflare/opaque-ts#readme",
     "repository": "github:cloudflare/opaque-ts",
     "engines": {
-        "node": ">=16"
+        "node": ">=20"
     },
     "devDependencies": {
         "@rollup/plugin-commonjs": "21.0.1",
@@ -38,7 +38,7 @@
         "eslint-plugin-jest": "27.2.1",
         "eslint-plugin-jest-formatting": "3.1.0",
         "eslint-plugin-prettier": "4.2.1",
-        "eslint-plugin-security": "1.7.1",
+        "eslint-plugin-security": "2.1.1",
         "jest": "29.4.3",
         "prettier": "2.8.4",
         "rollup": "2.61.1",
@@ -52,7 +52,6 @@
         "test": "tsc -b test && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --ci --no-cache",
         "lint": "eslint .",
         "format": "prettier './(src|test)/*.ts' --write",
-        "check-format": "prettier './(src|test)/*.ts' --check",
         "filesbundle": "rollup -c"
     },
     "dependencies": {
