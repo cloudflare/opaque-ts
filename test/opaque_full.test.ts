@@ -9,7 +9,6 @@ import {
     AuthServer,
     Config,
     CredentialFile,
-    ExpectedAuthResult,
     KE1,
     KE2,
     KE3,
@@ -145,19 +144,17 @@ async function test_full_login(input: inputTest, output: outputTest): Promise<bo
         server_identity
     )
     const deser_ke1 = KE1.deserialize(cfg, ser_ke1)
-    const ret_auth_init = await server.authInit(
+    const ke2 = await server.authInit(
         deser_ke1,
         credential_file.record,
         credential_file.credential_identifier,
         credential_file.client_identity,
         context
     )
-    expect(ret_auth_init).not.toBeInstanceOf(Error)
-    if (ret_auth_init instanceof Error) {
-        throw new Error(`server failed to authInit: ${ret_auth_init}`)
+    expect(ke2).not.toBeInstanceOf(Error)
+    if (ke2 instanceof Error) {
+        throw new Error(`server failed to authInit: ${ke2}`)
     }
-    const { ke2, expected } = ret_auth_init
-    const ser_expected = JSON.stringify(expected.serialize())
     const ser_ke2 = ke2.serialize()
     // Client           ke2          Server
     //           <<<-------------        |_ stores expected
@@ -178,18 +175,10 @@ async function test_full_login(input: inputTest, output: outputTest): Promise<bo
     //           ------------->>>       |_ recovers expected
 
     // Server
-    const server2: AuthServer = new OpaqueServer(
-        cfg,
-        input.oprf_seed,
-        input.server_ake_keypair,
-        server_identity
-    )
-    const deser_expected = ExpectedAuthResult.deserialize(cfg, JSON.parse(ser_expected))
     const deser_ke3 = KE3.deserialize(cfg, ser_ke3)
     expect(deser_ke3).toStrictEqual(ke3)
-    expect(deser_expected).toStrictEqual(expected)
 
-    const finServer = server2.authFinish(deser_ke3, deser_expected)
+    const finServer = server.authFinish(deser_ke3)
     expect(finServer).not.toBeInstanceOf(Error)
     if (finServer instanceof Error) {
         throw new Error(`server failed to authenticate user: ${finServer}`)
@@ -213,7 +202,8 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
             let output: outputTest = {}
 
             beforeAll(async () => {
-                const server_ake_keypair = await cfg.ake.generateAuthKeyPair()
+                const seed = Uint8Array.from(cfg.prng.random(cfg.constants.Nseed))
+                const server_ake_keypair = await cfg.ake.deriveDHKeyPair(seed)
                 input = {
                     cfg,
                     database: new KVStorage(),
@@ -222,7 +212,10 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
                     server_identity: 'server.opaque.example.com',
                     credential_identifier: 'client_identifier_defined_by_server',
                     oprf_seed: cfg.prng.random(cfg.hash.Nh),
-                    server_ake_keypair
+                    server_ake_keypair: {
+                        private_key: Array.from(server_ake_keypair.private_key),
+                        public_key: Array.from(server_ake_keypair.public_key)
+                    }
                 }
                 output = {}
             })

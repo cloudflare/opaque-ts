@@ -71,7 +71,7 @@ async function expand_keys(
         joinAll([envelope_nonce, Uint8Array.from(LABELS.PrivateKey)]),
         cfg.constants.Nseed
     )
-    const client_ake_keypair = await cfg.ake.deriveAuthKeyPair(seed)
+    const client_ake_keypair = await cfg.ake.deriveDHKeyPair(seed)
 
     return { auth_key, export_key, client_ake_keypair }
 }
@@ -151,7 +151,10 @@ async function recover(
 }
 
 export class OpaqueCoreClient {
-    constructor(public readonly config: Config, private ksf: KSFFn = ScryptKSFFn) {}
+    constructor(
+        public readonly config: Config,
+        private ksf: KSFFn = ScryptKSFFn
+    ) {}
 
     async createRegistrationRequest(
         password: Uint8Array

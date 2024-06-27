@@ -8,15 +8,16 @@ import {
     AuthResponse,
     CredentialResponse,
     ExpectedAuthResult,
-    KE1,
-    KE2
+    KE1
 } from './messages.js'
-import { checked_vector, ctEqual, joinAll } from './util.js'
+import { ctEqual, joinAll } from './util.js'
 import { deriveKeys, preambleBuild, tripleDH_IKM } from './common.js'
 
 import { Config } from './config.js'
 
 export class AKE3DHServer {
+    private expected?: ExpectedAuthResult
+
     constructor(private readonly config: Config) {}
 
     async response(
@@ -27,28 +28,25 @@ export class AKE3DHServer {
         context: Uint8Array,
         client_public_key: Uint8Array,
         client_identity?: Uint8Array
-    ): Promise<{ ke2: KE2; expected: ExpectedAuthResult }> {
-        const server_nonce = this.config.prng.random(this.config.constants.Nn)
-        const { private_key: server_secret, public_key: server_keyshare } =
-            await this.config.ake.generateAuthKeyPair()
-        const tmp_server_mac = new Uint8Array(this.config.mac.Nm)
-        const auth_response = new AuthResponse(
-            this.config,
-            new Uint8Array(server_nonce),
-            new Uint8Array(server_keyshare),
-            tmp_server_mac
+    ): Promise<AuthResponse> {
+        const server_nonce = Uint8Array.from(this.config.prng.random(this.config.constants.Nn))
+        const server_keyshare_seed = Uint8Array.from(
+            this.config.prng.random(this.config.constants.Nseed)
         )
-        const ke2 = new KE2(credential_response, auth_response)
+        const { private_key: server_secret, public_key: server_public_keyshare } =
+            await this.config.ake.deriveDHKeyPair(server_keyshare_seed)
         const preamble = preambleBuild(
-            ke1,
-            ke2,
-            server_identity,
             client_identity ? client_identity : client_public_key,
+            ke1,
+            server_identity,
+            credential_response,
+            server_nonce,
+            server_public_keyshare,
             context
         )
         const ikm = tripleDH_IKM(this.config, [
-            { sk: new Uint8Array(server_secret), pk: ke1.auth_init.client_keyshare },
-            { sk: server_private_key, pk: ke1.auth_init.client_keyshare },
+            { sk: new Uint8Array(server_secret), pk: ke1.auth_request.client_public_keyshare },
+            { sk: server_private_key, pk: ke1.auth_request.client_public_keyshare },
             { sk: new Uint8Array(server_secret), pk: client_public_key }
         ])
         const { Km2, Km3, session_key } = await deriveKeys(this.config, ikm, preamble)
@@ -56,21 +54,25 @@ export class AKE3DHServer {
         const server_mac = await (await this.config.mac.with_key(Km2)).sign(h_preamble)
         const h_preamble_mac = await this.config.hash.sum(joinAll([preamble, server_mac]))
         const expected_client_mac = await (await this.config.mac.with_key(Km3)).sign(h_preamble_mac)
-        const expected = new ExpectedAuthResult(this.config, expected_client_mac, session_key)
+        this.expected = new ExpectedAuthResult(this.config, expected_client_mac, session_key)
 
-        ke2.auth_response.server_mac = checked_vector(server_mac, this.config.mac.Nm)
+        const auth_response = new AuthResponse(
+            this.config,
+            server_nonce,
+            server_public_keyshare,
+            server_mac
+        )
 
-        return { ke2, expected }
+        return auth_response
     }
 
-    // eslint-disable-next-line class-methods-use-this
-    finish(
-        auth_finish: AuthFinish,
-        expected: ExpectedAuthResult
-    ): { session_key: number[] } | Error {
-        if (!ctEqual(auth_finish.client_mac, expected.expected_client_mac)) {
+    finish(auth_finish: AuthFinish): { session_key: number[] } | Error {
+        if (!this.expected) {
             return new Error('handshake error')
         }
-        return { session_key: Array.from(expected.session_key) }
+        if (!ctEqual(auth_finish.client_mac, this.expected.expected_client_mac)) {
+            return new Error('handshake error')
+        }
+        return { session_key: Array.from(this.expected.session_key) }
     }
 }
