@@ -25,8 +25,8 @@ import { KVStorage, fromHex, fromHexString, notNullHex, notNullHexString, toHex 
 import { OPRFClient, Oprf, SuiteID } from '@cloudflare/voprf-ts'
 
 import { jest } from '@jest/globals'
-import { readFileSync } from 'node:fs';
-import { unzipSync } from 'node:zlib';
+import { readFileSync } from 'node:fs'
+import { unzipSync } from 'node:zlib'
 
 interface Vector {
     config: Configuration
@@ -98,7 +98,6 @@ interface Outputs {
     registration_upload: string
     session_key: string
 }
-
 
 async function createMocks(vector: Vector, cfg: Config, isFake: boolean) {
     jest.clearAllMocks()
@@ -190,10 +189,7 @@ interface inputTest extends inputsRaw, inputsRawOpt {
     database: KVStorage
 }
 
-async function test_fake_registration(
-    input: inputTest,
-    _vector: Vector
-): Promise<boolean> {
+async function test_fake_registration(input: inputTest, _vector: Vector): Promise<boolean> {
     const fake_client_public_key = input.client_public_key
     const fake_masking_key = input.masking_key
     const nonce = new Uint8Array(input.cfg.constants.Nn)
@@ -390,14 +386,14 @@ async function test_full_login(input: inputTest, vector: Vector): Promise<boolea
 }
 
 function read_test_vectors(): Array<Vector> {
-    const filename = './test/testdata/vectors_v09.json.gz';
+    const filename = './test/testdata/vectors_v09.json.gz'
     try {
-        const file = readFileSync(filename);
-        const json = unzipSync(file);
-        const vectors = JSON.parse(json.toString());
-        return vectors;
+        const file = readFileSync(filename)
+        const json = unzipSync(file)
+        const vectors = JSON.parse(json.toString())
+        return vectors
     } catch (error) {
-        console.error(`Error reading ${filename}: ${error}`);
+        console.error(`Error reading ${filename}: ${error}`)
         process.abort()
     }
 }

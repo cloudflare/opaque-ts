@@ -3,7 +3,9 @@
     "version": "0.9.0",
     "description": "OPAQUE: Asymmetric Password-Authenticated Key Exchange in Typescript",
     "author": "Armando Faz <armfazh@cloudflare.com>",
-    "maintainers": "Armando Faz <armfazh@cloudflare.com>",
+    "maintainers": [
+        "Armando Faz <armfazh@cloudflare.com>"
+    ],
     "license": "BSD-3-Clause",
     "private": false,
     "type": "module",
@@ -50,6 +52,7 @@
         "test": "tsc -b test && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --ci --no-cache",
         "lint": "eslint .",
         "format": "prettier './(src|test)/*.ts' --write",
+        "check-format": "prettier './(src|test)/*.ts' --check",
         "filesbundle": "rollup -c"
     },
     "dependencies": {

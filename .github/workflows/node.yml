@@ -1,5 +1,5 @@
 ---
-name: OPAQUE-TS CI
+name: opaque-ts
 
 on:
   push:
@@ -9,15 +9,26 @@ on:
 
 jobs:
   testing:
+    name: Test on Node v${{ matrix.node }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 20]
     steps:
-      - uses: actions/checkout@v2
-      - name: Node version ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+      - name: Checking out
+        uses: actions/checkout@v4
+      - name: Node v${{ matrix.node }}
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: ${{ matrix.node }}
           cache: 'npm'
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run build
-      - run: npm test
+      - name: Install NPM dependencies
+        run: npm ci
+      - name: Format files
+        run: npm run check-format
+      - name: Linter
+        run: npm run lint
+      - name: Building
+        run: npm run build
+      - name: Testing
+        run: npm test
