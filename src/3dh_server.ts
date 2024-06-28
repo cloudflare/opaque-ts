@@ -36,7 +36,7 @@ export class AKE3DHServer {
         const { private_key: server_secret, public_key: server_public_keyshare } =
             await this.config.ake.deriveDHKeyPair(server_keyshare_seed)
         const preamble = preambleBuild(
-            client_identity ? client_identity : client_public_key,
+            client_identity ?? client_public_key,
             ke1,
             server_identity,
             credential_response,

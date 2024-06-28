@@ -235,17 +235,4 @@ export class AKE3DH implements AKEFn {
         )
         return { private_key: keypair.privateKey, public_key: keypair.publicKey }
     }
-
-    // recoverPublicKey(private_key: Uint8Array): AKEKeyPair {
-    //     const public_key = generatePublicKey(this.suiteID, private_key)
-    //     return { private_key, public_key }
-    // }
-
-    // async generateAuthKeyPair(): Promise<AKEExportKeyPair> {
-    //     const keypair = this.recoverPublicKey(await randomPrivateKey(this.suiteID))
-    //     return {
-    //         private_key: Array.from(keypair.private_key),
-    //         public_key: Array.from(keypair.public_key)
-    //     }
-    // }
 }
