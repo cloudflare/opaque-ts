@@ -5,6 +5,7 @@
 
 export class KVStorage {
     kvStorage: Map<string, Uint8Array>
+    default_key?: string
 
     constructor() {
         this.kvStorage = new Map<string, Uint8Array>()
@@ -21,6 +22,26 @@ export class KVStorage {
             return v
         }
         return false
+    }
+
+    set_default(k: string, v: Uint8Array): boolean {
+        const ok = this.store(k, v)
+        this.default_key = k
+        return ok
+    }
+
+    lookup_or_default(k: string): Uint8Array {
+        const err_msj = 'no default entry has been set'
+        if (!this.default_key) {
+            throw new Error(err_msj)
+        }
+
+        const v = this.kvStorage.get(k) ?? this.kvStorage.get(this.default_key)
+        if (!v) {
+            throw new Error(err_msj)
+        }
+
+        return v
     }
 }
 
