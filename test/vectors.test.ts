@@ -110,11 +110,11 @@ async function createMocks(vector: Vector, cfg: Config, isFake: boolean) {
             return Promise.resolve(scalar)
         })
 
-        jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(() => {
+        jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(async () => {
             const blind = notNullHex(vector.inputs.blind_login)
             const group = Oprf.getGroup(cfg.oprf.id as SuiteID)
             const scalar = group.desScalar(blind)
-            return Promise.resolve(scalar)
+            return scalar
         })
 
         jest.spyOn(crypto, 'getRandomValues')

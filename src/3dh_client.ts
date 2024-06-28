@@ -45,7 +45,7 @@ export class AKE3DHClient {
           }
         | Error
     > {
-        if (typeof this.client_secret === 'undefined' || typeof this.ke1 === 'undefined') {
+        if (!this.client_secret || !this.ke1) {
             return new Error('ake3dhclient has not started yet')
         }
 
