@@ -87,7 +87,7 @@ export function decode_vector_16(a: Uint8Array): {
 
 export function checked_vector(a: Uint8Array, n: number, str = 'array'): Uint8Array {
     if (a.length < n) {
-        throw new Error(`${str} has wrong length`)
+        throw new Error(`${str} has wrong length of ${a.length} expected ${n}`)
     }
     return a.slice(0, n)
 }

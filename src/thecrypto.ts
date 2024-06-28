@@ -164,6 +164,7 @@ export interface AKEFn {
     readonly Nsk: number // Nsk: The size of AKE private keys.
     readonly Npk: number // Npk: The size of AKE public keys.
     deriveDHKeyPair(seed: Uint8Array): Promise<AKEKeyPair>
+    generateDHKeyPair(): Promise<AKEKeyPair>
 }
 
 export interface OPRFFn {

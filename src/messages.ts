@@ -204,13 +204,11 @@ export class RegistrationRecord extends Serializable {
         return new RegistrationRecord(cfg, client_public_key, masking_key, envelope)
     }
 
-    static async createFake(cfg: Config): Promise<RegistrationRecord> {
-        const seed = cfg.prng.random(cfg.constants.Nseed)
-        const { public_key: client_public_key } = await cfg.ake.deriveDHKeyPair(
-            new Uint8Array(seed)
-        )
+    static async createFakeRecord(cfg: Config): Promise<RegistrationRecord> {
+        const { public_key: client_public_key } = await cfg.ake.generateDHKeyPair()
         const masking_key = new Uint8Array(cfg.prng.random(cfg.hash.Nh))
-        const envelope = Envelope.deserialize(cfg, new Array(Envelope.sizeSerialized(cfg)).fill(0))
+        const zero_envelope_bytes = new Array(Envelope.sizeSerialized(cfg))
+        const envelope = Envelope.deserialize(cfg, zero_envelope_bytes)
 
         return new RegistrationRecord(cfg, client_public_key, masking_key, envelope)
     }

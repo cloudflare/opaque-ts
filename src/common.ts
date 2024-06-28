@@ -13,6 +13,7 @@ import {
     Oprf,
     SuiteID,
     deriveKeyPair,
+    generateKeyPair,
     getKeySizes
 } from '@cloudflare/voprf-ts'
 import { CredentialResponse, KE1 } from './messages.js'
@@ -233,6 +234,11 @@ export class AKE3DH implements AKEFn {
             seed,
             Uint8Array.from(LABELS.OPAQUE_DeriveDHKeyPair)
         )
+        return { private_key: keypair.privateKey, public_key: keypair.publicKey }
+    }
+
+    async generateDHKeyPair(): Promise<AKEKeyPair> {
+        const keypair = await generateKeyPair(this.suiteID)
         return { private_key: keypair.privateKey, public_key: keypair.publicKey }
     }
 }

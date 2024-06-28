@@ -4,11 +4,9 @@
 // at https://opensource.org/licenses/BSD-3-Clause
 
 import {
-    AuthClient,
-    AuthServer,
+    AKE3DH,
     Config,
     CredentialFile,
-    Envelope,
     IdentityKSFFn,
     KE1,
     KE2,
@@ -100,30 +98,50 @@ interface Outputs {
 async function createMocks(vector: Vector, cfg: Config, isFake: boolean) {
     jest.clearAllMocks()
 
+    // Setup: Values used to create a fake record.
+    if (!isFake) {
+        jest.spyOn(crypto, 'getRandomValues')
+            .mockReturnValueOnce(notNullHex(vector.intermediates.client_public_key))
+            .mockReturnValueOnce(notNullHex(vector.intermediates.masking_key))
+    } else {
+        jest.spyOn(AKE3DH.prototype, 'generateDHKeyPair').mockImplementationOnce(async () => ({
+            private_key: notNullHex(vector.inputs.client_private_key),
+            public_key: notNullHex(vector.inputs.client_public_key)
+        }))
+
+        jest.spyOn(crypto, 'getRandomValues').mockReturnValueOnce(
+            notNullHex(vector.inputs.masking_key)
+        )
+    }
+
+    // Registration
     if (!isFake) {
         // Creates a mock for OPRFClient.randomBlinder method to
         // inject the blind value given by the test vector.
-        jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(() => {
+        jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(async () => {
             const blind = notNullHex(vector.inputs.blind_registration)
             const group = Oprf.getGroup(cfg.oprf.id as SuiteID)
-            const scalar = group.desScalar(blind)
-            return Promise.resolve(scalar)
+            return group.desScalar(blind)
         })
+    }
 
-        jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(async () => {
-            const blind = notNullHex(vector.inputs.blind_login)
-            const group = Oprf.getGroup(cfg.oprf.id as SuiteID)
-            const scalar = group.desScalar(blind)
-            return scalar
-        })
+    // Login
+    jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(async () => {
+        const blind = notNullHex(vector.inputs.blind_login)
+        const group = Oprf.getGroup(cfg.oprf.id as SuiteID)
+        return group.desScalar(blind)
+    })
 
-        jest.spyOn(crypto, 'getRandomValues')
-            .mockReturnValueOnce(notNullHex(vector.inputs.envelope_nonce))
-            .mockReturnValueOnce(notNullHex(vector.inputs.client_nonce))
-            .mockReturnValueOnce(notNullHex(vector.inputs.client_keyshare_seed))
+    // Registration
+    if (!isFake) {
+        jest.spyOn(crypto, 'getRandomValues').mockReturnValueOnce(
+            notNullHex(vector.inputs.envelope_nonce)
+        )
     }
 
     jest.spyOn(crypto, 'getRandomValues')
+        .mockReturnValueOnce(notNullHex(vector.inputs.client_nonce))
+        .mockReturnValueOnce(notNullHex(vector.inputs.client_keyshare_seed))
         .mockReturnValueOnce(notNullHex(vector.inputs.masking_nonce))
         .mockReturnValueOnce(notNullHex(vector.inputs.server_nonce))
         .mockReturnValueOnce(notNullHex(vector.inputs.server_keyshare_seed))
@@ -180,56 +198,25 @@ interface inputTest extends inputsRaw, inputsRawOpt {
     database: KVStorage
 }
 
-async function test_fake_registration(input: inputTest, _vector: Vector): Promise<boolean> {
-    const fake_client_public_key = input.client_public_key
-    const fake_masking_key = input.masking_key
-    const nonce = new Uint8Array(input.cfg.constants.Nn)
-    const auth_tag = new Uint8Array(input.cfg.mac.Nm)
-    const fake_envelope = new Envelope(input.cfg, nonce, auth_tag)
-    const record = new RegistrationRecord(
-        input.cfg,
-        fake_client_public_key,
-        fake_masking_key,
-        fake_envelope
-    )
+const FAKE_CREDENTIAL_IDENTIFIER = 'FAKE_CREDENTIAL_IDENTIFIER'
+const FAKE_CLIENT_IDENTITY = 'FAKE_CLIENT_IDENTITY'
 
-    // Server
-    const credential_file = new CredentialFile(
-        input.credential_identifier,
-        record,
-        input.client_identity
-    )
-    const success = input.database.store(
-        input.credential_identifier,
-        Uint8Array.from(credential_file.serialize())
-    )
-    expect(success).toBe(true)
-    return true
-}
-
-async function test_real_registration(input: inputTest, vector: Vector): Promise<boolean> {
-    // Setup
+async function test_setup(input: inputTest): Promise<{
+    client: OpaqueClient
+    server: OpaqueServer
+}> {
     const {
         cfg,
-        password,
-        server_identity,
-        client_identity,
-        credential_identifier,
         database,
-        ksf
+        ksf,
+        server_identity,
+        server_private_key,
+        server_public_key,
+        oprf_seed
     } = input
-    const { server_private_key, server_public_key, oprf_seed } = input
+
     // Client
     const client = new OpaqueClient(cfg, ksf)
-    const request = await client.registerInit(password)
-    expect(request).not.toBeInstanceOf(Error)
-    if (request instanceof Error) {
-        throw new Error('client failed to registerInit')
-    }
-
-    expect(toHex(Uint8Array.from(request.serialize()))).toBe(vector.outputs.registration_request)
-    // Client        request         Server
-    //           ------------->>>
 
     // Server
     const server = new OpaqueServer(
@@ -241,6 +228,55 @@ async function test_real_registration(input: inputTest, vector: Vector): Promise
         },
         server_identity
     )
+
+    // To prevent Client enumeration, the server stores a fake record in
+    // advance to be use when a non-registered user tries to login.
+    const fake_record = await RegistrationRecord.createFakeRecord(cfg)
+    const credential_file = new CredentialFile(
+        FAKE_CREDENTIAL_IDENTIFIER,
+        fake_record,
+        FAKE_CLIENT_IDENTITY
+    )
+
+    const success = database.set_default(
+        FAKE_CREDENTIAL_IDENTIFIER,
+        Uint8Array.from(credential_file.serialize())
+    )
+    expect(success).toBe(true)
+
+    return { client, server }
+}
+
+async function test_fake_registration(
+    _client: OpaqueClient,
+    _server: OpaqueServer,
+    _input: inputTest,
+    _vector: Vector
+): Promise<boolean> {
+    // This is a NOP since the Client never registers a password.
+    return true
+}
+
+async function test_real_registration(
+    client: OpaqueClient,
+    server: OpaqueServer,
+    input: inputTest,
+    vector: Vector
+): Promise<boolean> {
+    const { password, server_identity, client_identity, credential_identifier, database } = input
+
+    // Client
+    const request = await client.registerInit(password)
+    expect(request).not.toBeInstanceOf(Error)
+    if (request instanceof Error) {
+        throw new Error('client failed to registerInit')
+    }
+
+    expect(toHex(Uint8Array.from(request.serialize()))).toBe(vector.outputs.registration_request)
+    // Client        request         Server
+    //           ------------->>>
+
+    // Server
     const response = await server.registerInit(request, credential_identifier)
     expect(response).not.toBeInstanceOf(Error)
     if (response instanceof Error) {
@@ -277,8 +313,12 @@ async function test_real_registration(input: inputTest, vector: Vector): Promise
     return true
 }
 
-async function test_fake_login(input: inputTest, vector: Vector): Promise<boolean> {
-    // Setup
+async function test_fake_login(
+    client: OpaqueClient,
+    server: OpaqueServer,
+    input: inputTest,
+    vector: Vector
+): Promise<boolean> {
     const {
         cfg,
         context,
@@ -286,39 +326,34 @@ async function test_fake_login(input: inputTest, vector: Vector): Promise<boolea
         client_identity,
         credential_identifier,
         database,
-        ke1: ser_ke1
+        password
     } = input
-    const { server_private_key, server_public_key, oprf_seed } = input
 
-    if (!ser_ke1) {
-        throw new Error('KE1 is not present')
+    // Client
+    const ke1 = await client.authInit(password)
+    expect(ke1).not.toBeInstanceOf(Error)
+    if (ke1 instanceof Error) {
+        throw new Error('client failed to authInit')
     }
+
+    const ser_ke1 = ke1.serialize()
+    expect(toHex(Uint8Array.from(ser_ke1))).toBe(vector.inputs.KE1)
+    // Client          ke1           Server
+    //           ------------->>>
 
     // Server
-    const credFileBytes = database.lookup(credential_identifier)
-    expect(credFileBytes).not.toBe(false)
-
-    if (credFileBytes === false) {
-        throw new Error('client not registered in database')
-    }
-
+    const credFileBytes = database.lookup_or_default(credential_identifier)
     const credential_file = CredentialFile.deserialize(cfg, Array.from(credFileBytes))
-    expect(credential_file.credential_identifier).toBe(credential_identifier)
-    expect(credential_file.client_identity).toBe(client_identity)
+    expect(credential_file.credential_identifier).toBe(FAKE_CREDENTIAL_IDENTIFIER)
+    expect(credential_file.client_identity).toBe(FAKE_CLIENT_IDENTITY)
 
-    const server: AuthServer = new OpaqueServer(
-        cfg,
-        Array.from(oprf_seed),
-        {
-            private_key: Array.from(server_private_key),
-            public_key: Array.from(server_public_key)
-        },
-        server_identity
-    )
+    // Set the inputs from the allegedly-register client.
+    credential_file.credential_identifier = credential_identifier
+    credential_file.client_identity = client_identity
 
-    const ke1 = KE1.deserialize(cfg, Array.from(ser_ke1))
+    const deser_ke1 = KE1.deserialize(cfg, Array.from(ser_ke1))
     const ke2 = await server.authInit(
-        ke1,
+        deser_ke1,
         credential_file.record,
         credential_file.credential_identifier,
         credential_file.client_identity,
@@ -335,20 +370,23 @@ async function test_fake_login(input: inputTest, vector: Vector): Promise<boolea
     //           <<<-------------
 
     // Client
-    // [TODO] We must check that the client tries to complete the
-    // protocol and fails.
-    //
-    // const deser_ke2 = KE2.deserialize(cfg, Array.from(ser_ke2))
-    // const finClient = await client.authFinish(deser_ke2, server_identity, client_identity, context)
-
-    // if (finClient instanceof Error) {
-    //     expect(finClient.message).toBe('EnvelopeRecoveryError')
-    // }
+    const deser_ke2 = KE2.deserialize(cfg, Array.from(ser_ke2))
+    const finClient = await client.authFinish(deser_ke2, server_identity, client_identity, context)
+    expect(finClient).toBeInstanceOf(Error)
+    if (!(finClient instanceof Error)) {
+        throw new Error('client.authFinish should fail')
+    }
+    expect(finClient.message).toBe('EnvelopeRecoveryError')
 
     return true
 }
 
-async function test_real_login(input: inputTest, vector: Vector): Promise<boolean> {
+async function test_real_login(
+    client: OpaqueClient,
+    server: OpaqueServer,
+    input: inputTest,
+    vector: Vector
+): Promise<boolean> {
     // Setup
     const {
         cfg,
@@ -357,12 +395,10 @@ async function test_real_login(input: inputTest, vector: Vector): Promise<boolea
         client_identity,
         credential_identifier,
         database,
-        password,
-        ksf
+        password
     } = input
-    const { server_private_key, server_public_key, oprf_seed } = input
+
     // Client
-    const client: AuthClient = new OpaqueClient(cfg, ksf)
     const ke1 = await client.authInit(password)
     expect(ke1).not.toBeInstanceOf(Error)
     if (ke1 instanceof Error) {
@@ -375,26 +411,13 @@ async function test_real_login(input: inputTest, vector: Vector): Promise<boolea
     //           ------------->>>
 
     // Server
-    const credFileBytes = database.lookup(credential_identifier)
+    const credFileBytes = database.lookup_or_default(credential_identifier)
     expect(credFileBytes).not.toBe(false)
-
-    if (credFileBytes === false) {
-        throw new Error('client not registered in database')
-    }
 
     const credential_file = CredentialFile.deserialize(cfg, Array.from(credFileBytes))
     expect(credential_file.credential_identifier).toBe(credential_identifier)
     expect(credential_file.client_identity).toBe(client_identity)
 
-    const server: AuthServer = new OpaqueServer(
-        cfg,
-        Array.from(oprf_seed),
-        {
-            private_key: Array.from(server_private_key),
-            public_key: Array.from(server_public_key)
-        },
-        server_identity
-    )
     const deser_ke1 = KE1.deserialize(cfg, ser_ke1)
     const ke2 = await server.authInit(
         deser_ke1,
@@ -470,6 +493,8 @@ describe.each(read_test_vectors())('test-vector-$#', (vector: Vector) => {
 
         let cfg: Config
         let input: inputTest
+        let client: OpaqueClient
+        let server: OpaqueServer
 
         beforeAll(() => {
             if (isOk(res)) {
@@ -481,16 +506,19 @@ describe.each(read_test_vectors())('test-vector-$#', (vector: Vector) => {
             input = { cfg, database: new KVStorage(), ...getTestInputs(vector) }
         })
 
-        test('Opaque-setup', () => {
+        test('Opaque-setup', async () => {
             expect(input.ksf.name).toBe(vector.config.KSF)
+            ;({ client, server } = await test_setup(input))
+            expect(client).toBeDefined()
+            expect(server).toBeDefined()
         })
 
         test('Opaque-registration-' + label, async () => {
-            expect(await test_registration(input, vector)).toBe(true)
+            expect(await test_registration(client, server, input, vector)).toBe(true)
         })
 
         test('Opaque-login-' + label, async () => {
-            expect(await test_login(input, vector)).toBe(true)
+            expect(await test_login(client, server, input, vector)).toBe(true)
         })
     })
 })

@@ -99,11 +99,7 @@ export class OpaqueClient implements RegistrationClient, AuthClient {
           }
         | Error
     > {
-        if (
-            this.status !== OpaqueClient.States.REG_STARTED ||
-            typeof this.password === 'undefined' ||
-            typeof this.blind === 'undefined'
-        ) {
+        if (this.status !== OpaqueClient.States.REG_STARTED || !this.password || !this.blind) {
             return new Error('client not ready')
         }
         const te = new TextEncoder()
