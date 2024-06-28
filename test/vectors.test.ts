@@ -3,15 +3,14 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
+import type { Config, KSFFn } from '../src/index.js'
 import {
     AKE3DH,
-    Config,
     CredentialFile,
     IdentityKSFFn,
     KE1,
     KE2,
     KE3,
-    KSFFn,
     OpaqueClient,
     OpaqueConfig,
     OpaqueServer,
@@ -19,7 +18,8 @@ import {
     isOk
 } from '../src/index.js'
 import { KVStorage, fromHex, fromHexString, notNullHex, notNullHexString, toHex } from './common.js'
-import { OPRFClient, Oprf, SuiteID } from '@cloudflare/voprf-ts'
+import type { SuiteID } from '@cloudflare/voprf-ts'
+import { OPRFClient, Oprf } from '@cloudflare/voprf-ts'
 
 import { jest } from '@jest/globals'
 import { readFileSync } from 'node:fs'

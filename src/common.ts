@@ -3,7 +3,8 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { AKEFn, AKEKeyPair, OPRFFn } from './thecrypto.js'
+import type { AKEFn, AKEKeyPair, OPRFFn } from './thecrypto.js'
+import type { SuiteID } from '@cloudflare/voprf-ts'
 import {
     Evaluation,
     EvaluationRequest,
@@ -11,15 +12,14 @@ import {
     OPRFClient,
     OPRFServer,
     Oprf,
-    SuiteID,
     deriveKeyPair,
     generateKeyPair,
     getKeySizes
 } from '@cloudflare/voprf-ts'
-import { CredentialResponse, KE1 } from './messages.js'
+import type { CredentialResponse, KE1 } from './messages.js'
 import { encode_number, encode_vector_16, encode_vector_8, joinAll } from './util.js'
 
-import { Config } from './config.js'
+import type { Config } from './config.js'
 
 export type Ok<T> = { ok: true; value: T }
 export type Err<E> = { ok: false; error: E }

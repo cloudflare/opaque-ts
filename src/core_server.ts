@@ -3,17 +3,11 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import {
-    CredentialRequest,
-    CredentialResponse,
-    Envelope,
-    RegistrationRecord,
-    RegistrationRequest,
-    RegistrationResponse
-} from './messages.js'
+import type { CredentialRequest, RegistrationRecord, RegistrationRequest } from './messages.js'
+import { CredentialResponse, Envelope, RegistrationResponse } from './messages.js'
 import { checked_vector, joinAll, xor } from './util.js'
 
-import { Config } from './config.js'
+import type { Config } from './config.js'
 import { LABELS } from './common.js'
 
 export class OpaqueCoreServer {

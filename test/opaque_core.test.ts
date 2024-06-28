@@ -3,14 +3,8 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import {
-    AKEKeyPair,
-    Config,
-    CredentialFile,
-    OpaqueConfig,
-    OpaqueID,
-    RegistrationRecord
-} from '../src/index.js'
+import type { AKEKeyPair, Config, RegistrationRecord } from '../src/index.js'
+import { CredentialFile, OpaqueConfig, OpaqueID } from '../src/index.js'
 
 import { KVStorage } from './common.js'
 import { OpaqueCoreClient } from '../src/core_client.js'

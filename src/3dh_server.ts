@@ -3,17 +3,12 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import {
-    AuthFinish,
-    AuthResponse,
-    CredentialResponse,
-    ExpectedAuthResult,
-    KE1
-} from './messages.js'
+import type { AuthFinish, CredentialResponse, KE1 } from './messages.js'
+import { AuthResponse, ExpectedAuthResult } from './messages.js'
 import { ctEqual, joinAll } from './util.js'
 import { deriveKeys, preambleBuild, tripleDH_IKM } from './common.js'
 
-import { Config } from './config.js'
+import type { Config } from './config.js'
 
 export class AKE3DHServer {
     private expected?: ExpectedAuthResult
