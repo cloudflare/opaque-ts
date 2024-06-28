@@ -36,7 +36,8 @@
             "parser": "@typescript-eslint/parser",
             "parserOptions": {
                 "ecmaVersion": 2020,
-                "sourceType": "module"
+                "sourceType": "module",
+                "project": true
             },
             "extends": [
                 "plugin:@typescript-eslint/eslint-recommended",
@@ -90,7 +91,9 @@
                     {
                         "argsIgnorePattern": "^_"
                     }
-                ]
+                ],
+                "@typescript-eslint/consistent-type-imports": "error",
+                "@typescript-eslint/consistent-type-exports": "error"
             }
         }
     ]

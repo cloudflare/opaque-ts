@@ -3,18 +3,13 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { AKEKeyPair, KSFFn, ScryptKSFFn } from './thecrypto.js'
-import {
-    CredentialRequest,
-    CredentialResponse,
-    Envelope,
-    RegistrationRecord,
-    RegistrationRequest,
-    RegistrationResponse
-} from './messages.js'
+import type { AKEKeyPair, KSFFn } from './thecrypto.js'
+import { ScryptKSFFn } from './thecrypto.js'
+import type { CredentialResponse, RegistrationResponse } from './messages.js'
+import { CredentialRequest, Envelope, RegistrationRecord, RegistrationRequest } from './messages.js'
 import { checked_vector, encode_vector_16, joinAll, xor } from './util.js'
 
-import { Config } from './config.js'
+import type { Config } from './config.js'
 import { LABELS } from './common.js'
 
 class CleartextCredentials {

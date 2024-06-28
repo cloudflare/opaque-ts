@@ -5,7 +5,7 @@
 
 import { checked_vector, decode_vector_16, encode_vector_16, joinAll } from './util.js'
 
-import { Config } from './config.js'
+import type { Config } from './config.js'
 
 export abstract class Serializable {
     abstract serialize(): number[]

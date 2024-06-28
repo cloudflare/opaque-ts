@@ -3,10 +3,11 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { AuthFinish, AuthRequest, CredentialRequest, KE1, KE2 } from './messages.js'
+import type { CredentialRequest, KE2 } from './messages.js'
+import { AuthFinish, AuthRequest, KE1 } from './messages.js'
 import { deriveKeys, preambleBuild, tripleDH_IKM } from './common.js'
 
-import { Config } from './config.js'
+import type { Config } from './config.js'
 import { joinAll } from './util.js'
 
 export class AKE3DHClient {

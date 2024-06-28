@@ -3,18 +3,19 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import {
+import type {
     KE1,
     KE2,
-    KE3,
     RegistrationRecord,
     RegistrationRequest,
     RegistrationResponse
 } from './messages.js'
-import { KSFFn, ScryptKSFFn } from './thecrypto.js'
+import { KE3 } from './messages.js'
+import type { KSFFn } from './thecrypto.js'
+import { ScryptKSFFn } from './thecrypto.js'
 
 import { AKE3DHClient } from './3dh_client.js'
-import { Config } from './config.js'
+import type { Config } from './config.js'
 import { OpaqueCoreClient } from './core_client.js'
 
 export interface RegistrationClient {

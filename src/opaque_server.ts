@@ -3,19 +3,18 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { AKEExportKeyPair, AKEKeyPair } from './thecrypto.js'
-import {
+import type { AKEExportKeyPair, AKEKeyPair } from './thecrypto.js'
+import type {
     KE1,
-    KE2,
     KE3,
     RegistrationRecord,
     RegistrationRequest,
-    RegistrationResponse,
-    Serializable
+    RegistrationResponse
 } from './messages.js'
+import { KE2, Serializable } from './messages.js'
 
 import { AKE3DHServer } from './3dh_server.js'
-import { Config } from './config.js'
+import type { Config } from './config.js'
 import { OpaqueCoreServer } from './core_server.js'
 
 export interface RegistrationServer {

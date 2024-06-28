@@ -3,11 +3,14 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { AKE3DH, Err, OPRFBaseMode, Ok, Result } from './common.js'
-import { AKEFn, Hash, HashFn, Hkdf, Hmac, KDFFn, MACFn, OPRFFn, Prng, PrngFn } from './thecrypto.js'
-import { Oprf, SuiteID } from '@cloudflare/voprf-ts'
+import type { Result } from './common.js'
+import { AKE3DH, Err, OPRFBaseMode, Ok } from './common.js'
+import type { AKEFn, HashFn, KDFFn, MACFn, OPRFFn, PrngFn } from './thecrypto.js'
+import { Hash, Hkdf, Hmac, Prng } from './thecrypto.js'
+import type { SuiteID } from '@cloudflare/voprf-ts'
+import { Oprf } from '@cloudflare/voprf-ts'
 
-import { Config } from './config.js'
+import type { Config } from './config.js'
 
 export enum OpaqueID {
     OPAQUE_P256 = 'P256-SHA256',
