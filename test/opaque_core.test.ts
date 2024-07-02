@@ -6,7 +6,7 @@
 import type { AKEKeyPair, Config, RegistrationRecord } from '../src/index.js'
 import { CredentialFile, OpaqueConfig, OpaqueID } from '../src/index.js'
 
-import { KVStorage } from './common.js'
+import { KVStorage, expectNotError } from './common.js'
 import { OpaqueCoreClient } from '../src/core_client.js'
 import { OpaqueCoreServer } from '../src/core_server.js'
 
@@ -119,11 +119,7 @@ async function test_core_login(input: inputTest, output: outputTest): Promise<bo
         server_identity,
         client_identity
     )
-
-    expect(result).not.toBeInstanceOf(Error)
-    if (result instanceof Error) {
-        throw new Error('client failed to recover credentials')
-    }
+    expectNotError(result)
 
     expect(result.client_ake_keypair.public_key).toStrictEqual(output.record?.client_public_key)
     expect(result.server_public_key).toStrictEqual(input.server_ake_keypair.public_key)

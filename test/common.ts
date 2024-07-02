@@ -64,3 +64,11 @@ export function notNullHexString(x: unknown): string {
 export function notNullHex(x: unknown): Uint8Array {
     return typeof x === 'string' ? fromHex(x) : new Uint8Array(0)
 }
+
+export function expectNotError<T>(value: T | Error): asserts value is T {
+    expect(value).not.toBeInstanceOf(Error)
+}
+
+export function expectToBeError<T>(value: T | Error): asserts value is Error {
+    expect(value).toBeInstanceOf(Error)
+}

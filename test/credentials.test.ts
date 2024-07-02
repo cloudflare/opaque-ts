@@ -20,7 +20,7 @@ import {
     RegistrationResponse
 } from '../src/index.js'
 
-import { KVStorage } from './common.js'
+import { KVStorage, expectNotError } from './common.js'
 
 interface inputTest {
     cfg: Config
@@ -45,10 +45,8 @@ async function test_credentials(input: inputTest, output: outputTest): Promise<b
     // Client
     const client: RegistrationClient = new OpaqueClient(cfg)
     const request = await client.registerInit(password)
-    expect(request).not.toBeInstanceOf(Error)
-    if (request instanceof Error) {
-        throw new Error(`client failed to registerInit: ${request}`)
-    }
+    expectNotError(request)
+
     let serReq = request.serialize()
 
     // include being passed through a JSON encoding and decoding
@@ -65,10 +63,8 @@ async function test_credentials(input: inputTest, output: outputTest): Promise<b
         server_identity
     )
     const response = await server.registerInit(deserReq, credential_identifier)
-    expect(response).not.toBeInstanceOf(Error)
-    if (response instanceof Error) {
-        throw new Error(`server failed to registerInit: ${response}`)
-    }
+    expectNotError(response)
+
     const serRes = response.serialize()
     // Client        response        Server
     //           <<<-------------
@@ -76,10 +72,8 @@ async function test_credentials(input: inputTest, output: outputTest): Promise<b
     // Client
     const deserRes = RegistrationResponse.deserialize(cfg, serRes)
     const rec = await client.registerFinish(deserRes, server_identity, client_identity)
-    expect(rec).not.toBeInstanceOf(Error)
-    if (rec instanceof Error) {
-        throw new Error(`client failed to registerFinish: ${rec}`)
-    }
+    expectNotError(rec)
+
     const { record, export_key } = rec
     let serRec = record.serialize()
     // Client        record          Server
