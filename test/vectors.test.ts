@@ -17,7 +17,16 @@ import {
     RegistrationRecord,
     isOk
 } from '../src/index.js'
-import { KVStorage, fromHex, fromHexString, notNullHex, notNullHexString, toHex } from './common.js'
+import {
+    expectToBeError,
+    expectNotError,
+    KVStorage,
+    fromHex,
+    fromHexString,
+    notNullHex,
+    notNullHexString,
+    toHex
+} from './common.js'
 import type { SuiteID } from '@cloudflare/voprf-ts'
 import { OPRFClient, Oprf } from '@cloudflare/voprf-ts'
 
@@ -267,32 +276,21 @@ async function test_real_registration(
 
     // Client
     const request = await client.registerInit(password)
-    expect(request).not.toBeInstanceOf(Error)
-    if (request instanceof Error) {
-        throw new Error('client failed to registerInit')
-    }
-
+    expectNotError(request)
     expect(toHex(Uint8Array.from(request.serialize()))).toBe(vector.outputs.registration_request)
     // Client        request         Server
     //           ------------->>>
 
     // Server
     const response = await server.registerInit(request, credential_identifier)
-    expect(response).not.toBeInstanceOf(Error)
-    if (response instanceof Error) {
-        throw new Error('server failed to registerInit')
-    }
-
+    expectNotError(response)
     expect(toHex(Uint8Array.from(response.serialize()))).toBe(vector.outputs.registration_response)
     // Client        response        Server
     //           <<<-------------
 
     // Client
     const rec = await client.registerFinish(response, server_identity, client_identity)
-    expect(rec).not.toBeInstanceOf(Error)
-    if (rec instanceof Error) {
-        throw new Error('client failed to registerFinish')
-    }
+    expectNotError(rec)
 
     const { record, export_key } = rec
     expect(toHex(Uint8Array.from(record.serialize()))).toBe(vector.outputs.registration_upload)
@@ -331,10 +329,7 @@ async function test_fake_login(
 
     // Client
     const ke1 = await client.authInit(password)
-    expect(ke1).not.toBeInstanceOf(Error)
-    if (ke1 instanceof Error) {
-        throw new Error('client failed to authInit')
-    }
+    expectNotError(ke1)
 
     const ser_ke1 = ke1.serialize()
     expect(toHex(Uint8Array.from(ser_ke1))).toBe(vector.inputs.KE1)
@@ -359,10 +354,8 @@ async function test_fake_login(
         credential_file.client_identity,
         context
     )
-    expect(ke2).not.toBeInstanceOf(Error)
-    if (ke2 instanceof Error) {
-        throw new Error('server failed to authInit')
-    }
+    expectNotError(ke2)
+
     const ser_ke2 = Uint8Array.from(ke2.serialize())
     expect(toHex(ser_ke2)).toBe(vector.outputs.KE2)
 
@@ -372,10 +365,7 @@ async function test_fake_login(
     // Client
     const deser_ke2 = KE2.deserialize(cfg, Array.from(ser_ke2))
     const finClient = await client.authFinish(deser_ke2, server_identity, client_identity, context)
-    expect(finClient).toBeInstanceOf(Error)
-    if (!(finClient instanceof Error)) {
-        throw new Error('client.authFinish should fail')
-    }
+    expectToBeError(finClient)
     expect(finClient.message).toBe('EnvelopeRecoveryError')
 
     return true
@@ -387,7 +377,6 @@ async function test_real_login(
     input: inputTest,
     vector: Vector
 ): Promise<boolean> {
-    // Setup
     const {
         cfg,
         context,
@@ -400,10 +389,7 @@ async function test_real_login(
 
     // Client
     const ke1 = await client.authInit(password)
-    expect(ke1).not.toBeInstanceOf(Error)
-    if (ke1 instanceof Error) {
-        throw new Error('client failed to authInit')
-    }
+    expectNotError(ke1)
 
     const ser_ke1 = ke1.serialize()
     expect(toHex(Uint8Array.from(ser_ke1))).toBe(vector.outputs.KE1)
@@ -426,10 +412,8 @@ async function test_real_login(
         credential_file.client_identity,
         context
     )
-    expect(ke2).not.toBeInstanceOf(Error)
-    if (ke2 instanceof Error) {
-        throw new Error('server failed to authInit')
-    }
+    expectNotError(ke2)
+
     const ser_ke2 = Uint8Array.from(ke2.serialize())
     expect(toHex(ser_ke2)).toBe(vector.outputs.KE2)
     // Client           ke2          Server
@@ -438,10 +422,8 @@ async function test_real_login(
     // Client
     const deser_ke2 = KE2.deserialize(cfg, Array.from(ser_ke2))
     const finClient = await client.authFinish(deser_ke2, server_identity, client_identity, context)
-    expect(finClient).not.toBeInstanceOf(Error)
-    if (finClient instanceof Error) {
-        throw new Error('client failed to authFinish')
-    }
+    expectNotError(finClient)
+
     const { ke3, export_key } = finClient
     const ser_ke3 = Uint8Array.from(ke3.serialize())
     expect(toHex(ser_ke3)).toBe(vector.outputs.KE3)
@@ -452,11 +434,7 @@ async function test_real_login(
     // Server
     const deser_ke3 = KE3.deserialize(cfg, Array.from(ser_ke3))
     const finServer = server.authFinish(deser_ke3)
-    expect(finServer).not.toBeInstanceOf(Error)
-    if (finServer instanceof Error) {
-        throw new Error('server failed to authenticate user')
-    }
-
+    expectNotError(finServer)
     expect(toHex(Uint8Array.from(finServer.session_key))).toBe(vector.outputs.session_key)
 
     return true

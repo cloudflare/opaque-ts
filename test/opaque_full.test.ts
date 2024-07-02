@@ -25,7 +25,7 @@ import {
     RegistrationResponse
 } from '../src/index.js'
 
-import { KVStorage } from './common.js'
+import { KVStorage, expectNotError } from './common.js'
 
 interface inputTest {
     cfg: Config
@@ -50,10 +50,8 @@ async function test_full_registration(input: inputTest, output: outputTest): Pro
     // Client
     const client: RegistrationClient = new OpaqueClient(cfg)
     const request = await client.registerInit(password)
-    expect(request).not.toBeInstanceOf(Error)
-    if (request instanceof Error) {
-        throw new Error(`client failed to registerInit: ${request}`)
-    }
+    expectNotError(request)
+
     let serReq = request.serialize()
 
     // include being passed through a JSON encoding and decoding
@@ -70,10 +68,8 @@ async function test_full_registration(input: inputTest, output: outputTest): Pro
         server_identity
     )
     const response = await server.registerInit(deserReq, credential_identifier)
-    expect(response).not.toBeInstanceOf(Error)
-    if (response instanceof Error) {
-        throw new Error(`server failed to registerInit: ${response}`)
-    }
+    expectNotError(response)
+
     const serRes = response.serialize()
     // Client        response        Server
     //           <<<-------------
@@ -81,10 +77,8 @@ async function test_full_registration(input: inputTest, output: outputTest): Pro
     // Client
     const deserRes = RegistrationResponse.deserialize(cfg, serRes)
     const rec = await client.registerFinish(deserRes, server_identity, client_identity)
-    expect(rec).not.toBeInstanceOf(Error)
-    if (rec instanceof Error) {
-        throw new Error(`client failed to registerFinish: ${rec}`)
-    }
+    expectNotError(rec)
+
     const { record, export_key } = rec
     const serRec = record.serialize()
     // Client        record          Server
@@ -118,10 +112,7 @@ async function test_full_login(input: inputTest, output: outputTest): Promise<bo
     // Client
     const client: AuthClient = new OpaqueClient(cfg)
     const ke1 = await client.authInit(password)
-    expect(ke1).not.toBeInstanceOf(Error)
-    if (ke1 instanceof Error) {
-        throw new Error(`client failed to authInit: ${ke1}`)
-    }
+    expectNotError(ke1)
 
     const ser_ke1 = ke1.serialize()
     // Client        ke1         Server
@@ -153,10 +144,8 @@ async function test_full_login(input: inputTest, output: outputTest): Promise<bo
         credential_file.client_identity,
         context
     )
-    expect(ke2).not.toBeInstanceOf(Error)
-    if (ke2 instanceof Error) {
-        throw new Error(`server failed to authInit: ${ke2}`)
-    }
+    expectNotError(ke2)
+
     const ser_ke2 = ke2.serialize()
     // Client           ke2          Server
     //           <<<-------------        |_ stores expected
@@ -166,10 +155,7 @@ async function test_full_login(input: inputTest, output: outputTest): Promise<bo
     expect(deser_ke2).toStrictEqual(ke2)
 
     const finClient = await client.authFinish(deser_ke2, server_identity, client_identity, context)
-    expect(finClient).not.toBeInstanceOf(Error)
-    if (finClient instanceof Error) {
-        throw new Error(`client failed to authFinish: ${finClient}`)
-    }
+    expectNotError(finClient)
 
     const { ke3, session_key: session_key_client } = finClient
     const ser_ke3 = ke3.serialize()
@@ -181,14 +167,10 @@ async function test_full_login(input: inputTest, output: outputTest): Promise<bo
     expect(deser_ke3).toStrictEqual(ke3)
 
     const finServer = server.authFinish(deser_ke3)
-    expect(finServer).not.toBeInstanceOf(Error)
-    if (finServer instanceof Error) {
-        throw new Error(`server failed to authenticate user: ${finServer}`)
-    }
-
-    const { session_key: session_key_server } = finServer
+    expectNotError(finServer)
 
     // At the end, server and client MUST arrive to the same session key.
+    const { session_key: session_key_server } = finServer
     expect(session_key_client).toStrictEqual(session_key_server)
 
     return true
