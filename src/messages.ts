@@ -25,7 +25,7 @@ export abstract class Serializable {
     }
 
     static check_uint8arrays(as: Uint8Array[]): boolean {
-        return as.every(this.check_uint8array)
+        return as.every((v) => Serializable.check_uint8array(v))
     }
 
     static check_bytes_array(a: unknown): boolean {
@@ -39,7 +39,7 @@ export abstract class Serializable {
     }
 
     static check_bytes_arrays(as: Array<unknown>): boolean {
-        return as.every(this.check_bytes_array)
+        return as.every((v) => Serializable.check_bytes_array(v))
     }
 
     static sizeSerialized(_: Config): number {
@@ -207,7 +207,7 @@ export class RegistrationRecord extends Serializable {
     static async createFakeRecord(cfg: Config): Promise<RegistrationRecord> {
         const { public_key: client_public_key } = await cfg.ake.generateDHKeyPair()
         const masking_key = new Uint8Array(cfg.prng.random(cfg.hash.Nh))
-        const zero_envelope_bytes = new Array(Envelope.sizeSerialized(cfg))
+        const zero_envelope_bytes = new Array<number>(Envelope.sizeSerialized(cfg)).fill(0)
         const envelope = Envelope.deserialize(cfg, zero_envelope_bytes)
 
         return new RegistrationRecord(cfg, client_public_key, masking_key, envelope)

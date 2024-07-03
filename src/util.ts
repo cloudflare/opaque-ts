@@ -5,13 +5,14 @@
 
 export function joinAll(a: Uint8Array[]): Uint8Array {
     let size = 0
-    for (let i = 0; i < a.length; i++) {
-        size += a[i as number].length
+    for (const ai of a) {
+        size += ai.length
     }
     const ret = new Uint8Array(new ArrayBuffer(size))
-    for (let i = 0, offset = 0; i < a.length; i++) {
-        ret.set(a[i as number], offset)
-        offset += a[i as number].length
+    let offset = 0
+    for (const ai of a) {
+        ret.set(ai, offset)
+        offset += ai.length
     }
     return ret
 }
@@ -27,7 +28,7 @@ export function encode_number(n: number, bits: number): Uint8Array {
     const numBytes = Math.ceil(bits / 8)
     const out = new Uint8Array(numBytes)
     for (let i = 0; i < numBytes; i++) {
-        out[(numBytes - 1 - i) as number] = (n >> (8 * i)) & 0xff
+        out[numBytes - 1 - i] = (n >> (8 * i)) & 0xff
     }
     return out
 }
@@ -41,9 +42,9 @@ function decode_number(a: Uint8Array, bits: number): number {
         throw new Error('array has wrong size')
     }
     let out = 0
-    for (let i = 0; i < a.length; i++) {
+    for (const ai of a) {
         out <<= 8
-        out += a[i as number]
+        out += ai
     }
     return out
 }
@@ -103,7 +104,7 @@ export function xor(a: Uint8Array, b: Uint8Array): Uint8Array {
     const n = a.length
     const c = new Uint8Array(n)
     for (let i = 0; i < n; i++) {
-        c[i as number] = a[i as number] ^ b[i as number]
+        c[i] = a[i] ^ b[i]
     }
     return c
 }
@@ -115,7 +116,7 @@ export function ctEqual(a: Uint8Array, b: Uint8Array): boolean {
     const n = a.length
     let c = 0
     for (let i = 0; i < n; i++) {
-        c |= a[i as number] ^ b[i as number]
+        c |= a[i] ^ b[i]
     }
     return c === 0
 }

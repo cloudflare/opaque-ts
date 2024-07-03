@@ -4,9 +4,6 @@
     ],
     "testEnvironment": "node",
     "transform": {},
-    "setupFiles": [
-        "./test/jest.setup-file.mjs"
-    ],
     "collectCoverage": false,
     "verbose": true
 }

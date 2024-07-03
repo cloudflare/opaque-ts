@@ -52,10 +52,8 @@ async function test_full_registration(input: inputTest, output: outputTest): Pro
     const request = await client.registerInit(password)
     expectNotError(request)
 
-    let serReq = request.serialize()
+    const serReq = request.serialize()
 
-    // include being passed through a JSON encoding and decoding
-    serReq = JSON.parse(JSON.stringify(serReq))
     // Client        request         Server
     //           ------------->>>
 
@@ -181,7 +179,7 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
     (opaqueID: OpaqueID) => {
         const cfg = new OpaqueConfig(opaqueID)
 
-        describe(`${cfg.toString()}`, () => {
+        describe(`${cfg}`, () => {
             let input: inputTest = {} as unknown as inputTest
             let output: outputTest = {}
 
@@ -204,11 +202,13 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
                 output = {}
             })
 
-            test('Opaque-full-registration', async () =>
-                expect(await test_full_registration(input, output)).toBe(true))
+            test('Opaque-full-registration', async () => {
+                expect(await test_full_registration(input, output)).toBe(true)
+            })
 
-            test('Opaque-full-login', async () =>
-                expect(await test_full_login(input, output)).toBe(true))
+            test('Opaque-full-login', async () => {
+                expect(await test_full_login(input, output)).toBe(true)
+            })
         })
     }
 )
