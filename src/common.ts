@@ -73,7 +73,7 @@ export class OPRFBaseMode implements OPRFFn {
     }
 
     async blind(input: Uint8Array): Promise<{ blind: Uint8Array; blindedElement: Uint8Array }> {
-        const [finData, evalReq] = await new OPRFClient(this.id as SuiteID).blind([input])
+        const [finData, evalReq] = await new OPRFClient(this.id).blind([input])
         return {
             blind: finData.blinds[0].serialize(),
             blindedElement: evalReq.blinded[0].serialize()
@@ -81,7 +81,7 @@ export class OPRFBaseMode implements OPRFFn {
     }
 
     async evaluate(key: Uint8Array, blinded: Uint8Array): Promise<Uint8Array> {
-        const server = new OPRFServer(this.id as SuiteID, key)
+        const server = new OPRFServer(this.id, key)
         const deserBlinded = server.gg.desElt(blinded)
         const evalReq = new EvaluationRequest([deserBlinded])
         const evaluations = await server.blindEvaluate(evalReq)
@@ -93,7 +93,7 @@ export class OPRFBaseMode implements OPRFFn {
         blind: Uint8Array,
         evaluationBytes: Uint8Array
     ): Promise<Uint8Array> {
-        const client = new OPRFClient(this.id as SuiteID)
+        const client = new OPRFClient(this.id)
         const deserEval = client.gg.desElt(evaluationBytes)
         const blindSc = client.gg.desScalar(blind)
         const finData = new FinalizeData([input], [blindSc], new EvaluationRequest([]))
@@ -105,7 +105,7 @@ export class OPRFBaseMode implements OPRFFn {
     async deriveOPRFKey(seed: Uint8Array): Promise<Uint8Array> {
         const { privateKey } = await deriveKeyPair(
             Oprf.Mode.OPRF,
-            this.id as SuiteID,
+            this.id,
             seed,
             Uint8Array.from(LABELS.OPAQUE_DeriveKeyPair)
         )
@@ -164,14 +164,13 @@ type scalarElt3 = [scalarElt, scalarElt, scalarElt]
 
 export function tripleDH_IKM(cfg: Config, keys: scalarElt3): Uint8Array {
     const gg = Oprf.getGroup(cfg.oprf.id as SuiteID)
-    const ikm = new Array<Uint8Array>(3)
+    const ikm = new Array<Uint8Array>()
 
-    for (let i = 0; i < 3; i++) {
-        const { sk, pk } = keys[i as number]
+    for (const { sk, pk } of keys) {
         const point = gg.desElt(pk)
         const scalar = gg.desScalar(sk)
         const p = point.mul(scalar)
-        ikm[i as number] = p.serialize()
+        ikm.push(p.serialize())
     }
 
     return joinAll(ikm)

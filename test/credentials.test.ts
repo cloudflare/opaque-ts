@@ -47,10 +47,7 @@ async function test_credentials(input: inputTest, output: outputTest): Promise<b
     const request = await client.registerInit(password)
     expectNotError(request)
 
-    let serReq = request.serialize()
-
-    // include being passed through a JSON encoding and decoding
-    serReq = JSON.parse(JSON.stringify(serReq))
+    const serReq = request.serialize()
     // Client        request         Server
     //           ------------->>>
 
@@ -75,11 +72,9 @@ async function test_credentials(input: inputTest, output: outputTest): Promise<b
     expectNotError(rec)
 
     const { record, export_key } = rec
-    let serRec = record.serialize()
+    const serRec = record.serialize()
     // Client        record          Server
     //           ------------->>>
-
-    serRec = JSON.parse(JSON.stringify(serRec))
 
     // Server
     const deserRec = RegistrationRecord.deserialize(cfg, serRec)
@@ -100,7 +95,7 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
     (opaqueID: OpaqueID) => {
         const cfg = new OpaqueConfig(opaqueID)
 
-        describe(`${cfg.toString()}`, () => {
+        describe(`${cfg}`, () => {
             let input: inputTest = {} as unknown as inputTest
             let output: outputTest = {}
 
@@ -123,8 +118,9 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
                 output = {}
             })
 
-            test('Opaque-credentials', async () =>
-                expect(await test_credentials(input, output)).toBe(true))
+            test('Opaque-credentials', async () => {
+                expect(await test_credentials(input, output)).toBe(true)
+            })
         })
     }
 )

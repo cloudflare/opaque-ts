@@ -133,7 +133,7 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
     (opaqueID: OpaqueID) => {
         const cfg = new OpaqueConfig(opaqueID)
 
-        describe(`${cfg.toString()}`, () => {
+        describe(`${cfg}`, () => {
             let input: inputTest = {} as unknown as inputTest
             let output: outputTest = {}
 
@@ -154,11 +154,13 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
                 output = {}
             })
 
-            test('Opaque-core-registration', async () =>
-                expect(await test_core_registration(input, output)).toBe(true))
+            test('Opaque-core-registration', async () => {
+                expect(await test_core_registration(input, output)).toBe(true)
+            })
 
-            test('Opaque-core-login', async () =>
-                expect(await test_core_login(input, output)).toBe(true))
+            test('Opaque-core-login', async () => {
+                expect(await test_core_login(input, output)).toBe(true)
+            })
         })
     }
 )

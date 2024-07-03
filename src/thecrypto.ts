@@ -27,7 +27,7 @@ export interface HashFn {
 export class Hash implements HashFn {
     readonly Nh: number
 
-    constructor(public readonly name: string | Hash.ID) {
+    constructor(public readonly name: string) {
         switch (name) {
             case Hash.ID.SHA1:
                 this.Nh = 20
@@ -75,7 +75,7 @@ export interface MACFn {
 export class Hmac implements MACFn {
     readonly Nm: number
 
-    constructor(private readonly hash: string | Hash.ID) {
+    constructor(private readonly hash: string) {
         this.Nm = new Hash(hash).Nh
     }
 
@@ -111,7 +111,7 @@ export interface KDFFn {
 export class Hkdf implements KDFFn {
     readonly Nx: number
 
-    constructor(public hash: string | Hash.ID) {
+    constructor(public hash: string) {
         this.Nx = new Hmac(hash).Nm
     }
 

@@ -104,7 +104,7 @@ interface Outputs {
     session_key: string
 }
 
-async function createMocks(vector: Vector, cfg: Config, isFake: boolean) {
+function createMocks(vector: Vector, cfg: Config, isFake: boolean) {
     jest.clearAllMocks()
 
     // Setup: Values used to create a fake record.
@@ -113,10 +113,12 @@ async function createMocks(vector: Vector, cfg: Config, isFake: boolean) {
             .mockReturnValueOnce(notNullHex(vector.intermediates.client_public_key))
             .mockReturnValueOnce(notNullHex(vector.intermediates.masking_key))
     } else {
-        jest.spyOn(AKE3DH.prototype, 'generateDHKeyPair').mockImplementationOnce(async () => ({
-            private_key: notNullHex(vector.inputs.client_private_key),
-            public_key: notNullHex(vector.inputs.client_public_key)
-        }))
+        jest.spyOn(AKE3DH.prototype, 'generateDHKeyPair').mockImplementationOnce(() =>
+            Promise.resolve({
+                private_key: notNullHex(vector.inputs.client_private_key),
+                public_key: notNullHex(vector.inputs.client_public_key)
+            })
+        )
 
         jest.spyOn(crypto, 'getRandomValues').mockReturnValueOnce(
             notNullHex(vector.inputs.masking_key)
@@ -127,18 +129,18 @@ async function createMocks(vector: Vector, cfg: Config, isFake: boolean) {
     if (!isFake) {
         // Creates a mock for OPRFClient.randomBlinder method to
         // inject the blind value given by the test vector.
-        jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(async () => {
+        jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(() => {
             const blind = notNullHex(vector.inputs.blind_registration)
             const group = Oprf.getGroup(cfg.oprf.id as SuiteID)
-            return group.desScalar(blind)
+            return Promise.resolve(group.desScalar(blind))
         })
     }
 
     // Login
-    jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(async () => {
+    jest.spyOn(OPRFClient.prototype, 'randomBlinder').mockImplementationOnce(() => {
         const blind = notNullHex(vector.inputs.blind_login)
         const group = Oprf.getGroup(cfg.oprf.id as SuiteID)
-        return group.desScalar(blind)
+        return Promise.resolve(group.desScalar(blind))
     })
 
     // Registration
@@ -256,14 +258,14 @@ async function test_setup(input: inputTest): Promise<{
     return { client, server }
 }
 
-async function test_fake_registration(
+function test_fake_registration(
     _client: OpaqueClient,
     _server: OpaqueServer,
     _input: inputTest,
     _vector: Vector
 ): Promise<boolean> {
     // This is a NOP since the Client never registers a password.
-    return true
+    return Promise.resolve(true)
 }
 
 async function test_real_registration(
@@ -445,7 +447,7 @@ function read_test_vectors(): Array<Vector> {
     try {
         const file = readFileSync(filename)
         const json = unzipSync(file)
-        const vectors = JSON.parse(json.toString())
+        const vectors = JSON.parse(json.toString()) as Array<Vector>
         return vectors
     } catch (error) {
         console.error(`Error reading ${filename}: ${error}`)
@@ -458,7 +460,7 @@ describe.each(read_test_vectors())('test-vector-$#', (vector: Vector) => {
     const res = OpaqueConfig.fromString(opaqueID)
     const describe_or_skip = isOk(res) ? describe : describe.skip
 
-    describe_or_skip(`${opaqueID}`, () => {
+    describe_or_skip(opaqueID, () => {
         const isFake = vector.config.Fake === 'True'
         let label = 'real'
         let test_registration = test_real_registration
