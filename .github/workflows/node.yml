@@ -6,19 +6,20 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-
+permissions:
+  contents: read
 jobs:
   testing:
     name: Test on Node v${{ matrix.node }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [22, 20]
+        node: [24, 22]
     steps:
       - name: Checking out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Node v${{ matrix.node }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
           cache: 'npm'
