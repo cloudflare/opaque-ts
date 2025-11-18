@@ -104,7 +104,7 @@ export function xor(a: Uint8Array, b: Uint8Array): Uint8Array {
     const n = a.length
     const c = new Uint8Array(n)
     for (let i = 0; i < n; i++) {
-        c[i] = a[i] ^ b[i]
+        c[i | 0] = a[i | 0] ^ b[i | 0]
     }
     return c
 }
@@ -116,7 +116,7 @@ export function ctEqual(a: Uint8Array, b: Uint8Array): boolean {
     const n = a.length
     let c = 0
     for (let i = 0; i < n; i++) {
-        c |= a[i] ^ b[i]
+        c |= a[i | 0] ^ b[i | 0]
     }
     return c === 0
 }

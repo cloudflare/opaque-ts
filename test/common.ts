@@ -69,6 +69,6 @@ export function expectNotError<T>(value: T | Error): asserts value is T {
     expect(value).not.toBeInstanceOf(Error)
 }
 
-export function expectToBeError<T>(value: T | Error): asserts value is Error {
+export function expectToBeError(value: object | Error): asserts value is Error {
     expect(value).toBeInstanceOf(Error)
 }
