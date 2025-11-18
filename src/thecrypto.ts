@@ -47,7 +47,7 @@ export class Hash implements HashFn {
     }
 
     async sum(msg: Uint8Array): Promise<Uint8Array> {
-        return new Uint8Array(await crypto.subtle.digest(this.name, msg))
+        return new Uint8Array(await crypto.subtle.digest(this.name, msg as Uint8Array<ArrayBuffer>))
     }
 }
 
@@ -81,9 +81,13 @@ export class Hmac implements MACFn {
 
     async with_key(key: Uint8Array): Promise<MACOps> {
         return new Hmac.Macops(
-            await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: this.hash }, false, [
-                'sign'
-            ])
+            await crypto.subtle.importKey(
+                'raw',
+                key as Uint8Array<ArrayBuffer>,
+                { name: 'HMAC', hash: this.hash },
+                false,
+                ['sign']
+            )
         )
     }
 
@@ -92,7 +96,11 @@ export class Hmac implements MACFn {
 
         async sign(msg: Uint8Array): Promise<Uint8Array> {
             return new Uint8Array(
-                await crypto.subtle.sign(this.crypto_key.algorithm.name, this.crypto_key, msg)
+                await crypto.subtle.sign(
+                    this.crypto_key.algorithm.name,
+                    this.crypto_key,
+                    msg.buffer as ArrayBuffer
+                )
             )
         }
 
@@ -130,7 +138,7 @@ export class Hkdf implements KDFFn {
         let Ti = new Uint8Array()
         let offset = 0
         for (let i = 0; i < N; i++) {
-            Ti = await hm.sign(joinAll([Ti, info, Uint8Array.of(i + 1)])) // eslint-disable-line no-await-in-loop
+            Ti = new Uint8Array(await hm.sign(joinAll([Ti, info, Uint8Array.of(i + 1)]))) // eslint-disable-line no-await-in-loop
             T.set(Ti, offset)
             offset += hashLen
         }

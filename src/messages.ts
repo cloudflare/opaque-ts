@@ -581,7 +581,7 @@ export class KE3 extends Serializable {
         this.checked_bytes_to_uint8array(cfg, bytes)
 
         const start = 0
-        const end = Number(AuthFinish.sizeSerialized(cfg))
+        const end = AuthFinish.sizeSerialized(cfg)
         const auth_finish = AuthFinish.deserialize(cfg, bytes.slice(start, end))
 
         return new KE3(auth_finish)
