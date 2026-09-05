@@ -6,11 +6,13 @@
 import { ctEqual, joinAll } from './util.js'
 
 import { scrypt } from '@noble/hashes/lib/scrypt'
+import { crypto as platformCrypto } from '@noble/hashes/lib/crypto'
 
-const getCrypto = () =>
-    typeof crypto === 'undefined' && typeof window === 'undefined'
-        ? require('crypto').webcrypto
-        : crypto
+function getCrypto(): Crypto {
+    const api = globalThis.crypto ?? platformCrypto.web ?? platformCrypto.node?.webcrypto
+    if (!api) throw new Error('WebCrypto is unavailable in this environment')
+    return api
+}
 
 export interface PrngFn {
     random(numBytes: number): number[]
