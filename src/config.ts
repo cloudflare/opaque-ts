@@ -3,7 +3,7 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { AKEFn, HashFn, KDFFn, MACFn, OPRFFn, PrngFn } from './thecrypto.js'
+import type { AKEFn, HashFn, KDFFn, MACFn, OPRFFn, PrngFn } from './thecrypto.js'
 
 export interface Config {
     readonly constants: {

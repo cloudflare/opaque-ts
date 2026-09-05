@@ -3,26 +3,39 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { AKEExportKeyPair, AKEFn, AKEKeyPair, OPRFFn } from './thecrypto.js'
+import type { AKEFn, AKEKeyPair, OPRFFn } from './thecrypto.js'
+import type { SuiteID } from '@cloudflare/voprf-ts'
 import {
-    Blind,
-    Blinded,
     Evaluation,
-    Group,
+    EvaluationRequest,
+    FinalizeData,
     OPRFClient,
     OPRFServer,
     Oprf,
-    OprfID,
-    SerializedElt,
-    SerializedScalar,
-    generatePublicKey,
-    getKeySizes,
-    randomPrivateKey
+    deriveKeyPair,
+    generateKeyPair,
+    getKeySizes
 } from '@cloudflare/voprf-ts'
-import { KE1, KE2 } from './messages.js'
+import type { CredentialResponse, KE1 } from './messages.js'
 import { encode_number, encode_vector_16, encode_vector_8, joinAll } from './util.js'
 
-import { Config } from './config.js'
+import type { Config } from './config.js'
+
+export type Ok<T> = { ok: true; value: T }
+export type Err<E> = { ok: false; error: E }
+export function Ok<T>(v: T): Ok<T> {
+    return { ok: true, value: v }
+}
+export function Err<E>(e: E): Err<E> {
+    return { ok: false, error: e }
+}
+export type Result<T, E> = Ok<T> | Err<E>
+export function isErr<T, E>(res: Result<T, E>): res is Err<E> {
+    return !res.ok
+}
+export function isOk<T, E>(res: Result<T, E>): res is Ok<T> {
+    return res.ok
+}
 
 const te = new TextEncoder()
 function encStr(s: string): readonly number[] {
@@ -36,13 +49,13 @@ export const LABELS = {
     HandshakeSecret: encStr('HandshakeSecret'),
     MaskingKey: encStr('MaskingKey'),
     OPAQUE: encStr('OPAQUE-'),
-    OPAQUE_DeriveAuthKeyPair: encStr('OPAQUE-DeriveAuthKeyPair'),
+    OPAQUE_DeriveDHKeyPair: encStr('OPAQUE-DeriveDiffieHellmanKeyPair'),
     OPAQUE_DeriveKeyPair: encStr('OPAQUE-DeriveKeyPair'),
     OprfKey: encStr('OprfKey'),
     PrivateKey: encStr('PrivateKey'),
-    RFC: encStr('RFCXXXX'),
     ServerMAC: encStr('ServerMAC'),
-    SessionKey: encStr('SessionKey')
+    SessionKey: encStr('SessionKey'),
+    Version: encStr('OPAQUEv1-')
 } as const
 
 export class OPRFBaseMode implements OPRFFn {
@@ -52,42 +65,51 @@ export class OPRFBaseMode implements OPRFFn {
 
     readonly name: string // name: Name of the OPRF function.
 
-    constructor(public readonly id: number) {
-        const { blindedSize, hash } = Oprf.params(id)
-        this.Noe = blindedSize
-        this.hash = hash
-        this.name = OprfID[id as number]
+    constructor(public readonly id: SuiteID) {
+        const group = Oprf.getGroup(id)
+        this.Noe = group.eltSize(true)
+        this.hash = Oprf.getHash(id)
+        this.name = group.id
     }
 
     async blind(input: Uint8Array): Promise<{ blind: Uint8Array; blindedElement: Uint8Array }> {
-        const res = await new OPRFClient(this.id).blind(input)
+        const [finData, evalReq] = await new OPRFClient(this.id).blind([input])
         return {
-            blind: new Uint8Array(res.blind.buffer),
-            blindedElement: new Uint8Array(res.blindedElement.buffer)
+            blind: finData.blinds[0].serialize(),
+            blindedElement: evalReq.blinded[0].serialize()
         }
     }
 
     async evaluate(key: Uint8Array, blinded: Uint8Array): Promise<Uint8Array> {
-        const res = await new OPRFServer(this.id, key).evaluate(
-            new Blinded(blinded),
-            new Uint8Array()
-        )
-        return new Uint8Array(res.buffer)
+        const server = new OPRFServer(this.id, key)
+        const deserBlinded = server.gg.desElt(blinded)
+        const evalReq = new EvaluationRequest([deserBlinded])
+        const evaluations = await server.blindEvaluate(evalReq)
+        return evaluations.evaluated[0].serialize()
     }
 
-    finalize(input: Uint8Array, blind: Uint8Array, evaluation: Uint8Array): Promise<Uint8Array> {
-        return new OPRFClient(this.id).finalize(
-            input,
-            new Uint8Array(),
-            new Blind(blind),
-            new Evaluation(evaluation)
-        )
+    async finalize(
+        input: Uint8Array,
+        blind: Uint8Array,
+        evaluationBytes: Uint8Array
+    ): Promise<Uint8Array> {
+        const client = new OPRFClient(this.id)
+        const deserEval = client.gg.desElt(evaluationBytes)
+        const blindSc = client.gg.desScalar(blind)
+        const finData = new FinalizeData([input], [blindSc], new EvaluationRequest([]))
+        const evaluation = new Evaluation(client.mode, [deserEval])
+        const outputs = await client.finalize(finData, evaluation)
+        return outputs[0]
     }
 
     async deriveOPRFKey(seed: Uint8Array): Promise<Uint8Array> {
-        const { gg } = Oprf.params(this.id)
-        const priv = await gg.hashToScalar(seed, Uint8Array.from(LABELS.OPAQUE_DeriveKeyPair))
-        return new Uint8Array(gg.serializeScalar(priv))
+        const { privateKey } = await deriveKeyPair(
+            Oprf.Mode.OPRF,
+            this.id,
+            seed,
+            Uint8Array.from(LABELS.OPAQUE_DeriveKeyPair)
+        )
+        return privateKey
     }
 }
 
@@ -117,21 +139,23 @@ function deriveSecret(
 }
 
 export function preambleBuild(
-    ke1: KE1,
-    ke2: KE2,
-    server_identity: Uint8Array,
     client_identity: Uint8Array,
+    ke1: KE1,
+    server_identity: Uint8Array,
+    credential_response: CredentialResponse,
+    server_nonce: Uint8Array,
+    server_public_keyshare: Uint8Array,
     context: Uint8Array
 ): Uint8Array {
     return joinAll([
-        Uint8Array.from(LABELS.RFC),
+        Uint8Array.from(LABELS.Version),
         encode_vector_16(context),
         encode_vector_16(client_identity),
         Uint8Array.from(ke1.serialize()),
         encode_vector_16(server_identity),
-        Uint8Array.from(ke2.response.serialize()),
-        ke2.auth_response.server_nonce,
-        ke2.auth_response.server_keyshare
+        Uint8Array.from(credential_response.serialize()),
+        server_nonce,
+        server_public_keyshare
     ])
 }
 
@@ -139,15 +163,14 @@ type scalarElt = { sk: Uint8Array; pk: Uint8Array }
 type scalarElt3 = [scalarElt, scalarElt, scalarElt]
 
 export function tripleDH_IKM(cfg: Config, keys: scalarElt3): Uint8Array {
-    const { gg } = Oprf.params(cfg.oprf.id)
-    const ikm = new Array<Uint8Array>(3)
+    const gg = Oprf.getGroup(cfg.oprf.id as SuiteID)
+    const ikm = new Array<Uint8Array>()
 
-    for (let i = 0; i < 3; i++) {
-        const { sk, pk } = keys[i as number]
-        const point = gg.deserialize(new SerializedElt(pk))
-        const scalar = gg.deserializeScalar(new SerializedScalar(sk))
-        const p = Group.mul(scalar, point)
-        ikm[i as number] = gg.serialize(p)
+    for (const { sk, pk } of keys) {
+        const point = gg.desElt(pk)
+        const scalar = gg.desScalar(sk)
+        const p = point.mul(scalar)
+        ikm.push(p.serialize())
     }
 
     return joinAll(ikm)
@@ -194,30 +217,27 @@ export class AKE3DH implements AKEFn {
 
     readonly Npk: number
 
-    constructor(private readonly oprfID: OprfID) {
-        const { Npk, Nsk } = getKeySizes(oprfID)
+    private readonly suiteID: SuiteID
+
+    constructor(oprfID: SuiteID) {
+        this.suiteID = oprfID
+        const { Npk, Nsk } = getKeySizes(this.suiteID)
         this.Npk = Npk
         this.Nsk = Nsk
     }
 
-    async deriveAuthKeyPair(seed: Uint8Array): Promise<AKEKeyPair> {
-        const { gg } = Oprf.params(this.oprfID)
-        const priv = await gg.hashToScalar(seed, Uint8Array.from(LABELS.OPAQUE_DeriveAuthKeyPair))
-        const private_key = new Uint8Array(gg.serializeScalar(priv))
-        const public_key = generatePublicKey(this.oprfID, private_key)
-        return { private_key, public_key }
+    async deriveDHKeyPair(seed: Uint8Array): Promise<AKEKeyPair> {
+        const keypair = await deriveKeyPair(
+            Oprf.Mode.OPRF,
+            this.suiteID,
+            seed,
+            Uint8Array.from(LABELS.OPAQUE_DeriveDHKeyPair)
+        )
+        return { private_key: keypair.privateKey, public_key: keypair.publicKey }
     }
 
-    recoverPublicKey(private_key: Uint8Array): AKEKeyPair {
-        const public_key = generatePublicKey(this.oprfID, private_key)
-        return { private_key, public_key }
-    }
-
-    async generateAuthKeyPair(): Promise<AKEExportKeyPair> {
-        const keypair = this.recoverPublicKey(await randomPrivateKey(this.oprfID))
-        return {
-            private_key: Array.from(keypair.private_key),
-            public_key: Array.from(keypair.public_key)
-        }
+    async generateDHKeyPair(): Promise<AKEKeyPair> {
+        const keypair = await generateKeyPair(this.suiteID)
+        return { private_key: keypair.privateKey, public_key: keypair.publicKey }
     }
 }

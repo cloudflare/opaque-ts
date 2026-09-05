@@ -4,29 +4,29 @@ This is a Typescript library for the Asymmetric Password-Authenticated Key Excha
 
 [![NPM](https://nodei.co/npm/@cloudflare/opaque-ts.png)](https://www.npmjs.com/package/@cloudflare/opaque-ts)
 
-### Use
+## Use
 
 Available at: [@cloudflare/opaque-ts](https://www.npmjs.com/package/@cloudflare/opaque-ts)
 
 ```sh
- $ npm install @cloudflare/opaque-ts
+npm install @cloudflare/opaque-ts
 ```
 
-### Specification
+## Specification
 
 IETF Draft: [OPAQUE v07](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-opaque-07)
 
-### Test and Coverage
+## Test and Coverage
 
 ```sh
- $ npm ci
- $ npm test
+npm ci
+npm test
 ```
 
-### Dependencies
+## Dependencies
 
 Uses `@cloudflare/voprf-ts` for the group and OPRF operations, WebCrypto API for hashing and key derivation functions, and `@noble/hashes` for scrypt memory-hard function.
 
-### License
+## License
 
 [BSD-3-Clause](LICENSE.txt)

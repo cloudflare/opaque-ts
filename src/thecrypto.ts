@@ -5,11 +5,11 @@
 
 import { ctEqual, joinAll } from './util.js'
 
-import { scrypt } from '@noble/hashes/lib/scrypt'
-import { crypto as platformCrypto } from '@noble/hashes/lib/crypto'
+import { scrypt } from '@noble/hashes/scrypt'
+import { crypto as platformCrypto } from '@noble/hashes/crypto'
 
 function getCrypto(): Crypto {
-    const api = globalThis.crypto ?? platformCrypto.web ?? platformCrypto.node?.webcrypto
+    const api = platformCrypto as Crypto | undefined
     if (!api) throw new Error('WebCrypto is unavailable in this environment')
     return api
 }
@@ -34,7 +34,7 @@ export interface HashFn {
 export class Hash implements HashFn {
     readonly Nh: number
 
-    constructor(public readonly name: string | Hash.ID) {
+    constructor(public readonly name: string) {
         switch (name) {
             case Hash.ID.SHA1:
                 this.Nh = 20
@@ -82,7 +82,7 @@ export interface MACFn {
 export class Hmac implements MACFn {
     readonly Nm: number
 
-    constructor(private readonly hash: string | Hash.ID) {
+    constructor(private readonly hash: string) {
         this.Nm = new Hash(hash).Nh
     }
 
@@ -122,11 +122,14 @@ export interface KDFFn {
 export class Hkdf implements KDFFn {
     readonly Nx: number
 
-    constructor(public hash: string | Hash.ID) {
+    constructor(public hash: string) {
         this.Nx = new Hmac(hash).Nm
     }
 
     async extract(salt: Uint8Array, ikm: Uint8Array): Promise<Uint8Array> {
+        if (salt.length === 0) {
+            salt = new Uint8Array(this.Nx)
+        }
         return (await new Hmac(this.hash).with_key(salt)).sign(ikm)
     }
 
@@ -146,14 +149,14 @@ export class Hkdf implements KDFFn {
     }
 }
 
-export interface MemoryHardFn {
+export interface KSFFn {
     readonly name: string
     readonly harden: (input: Uint8Array) => Uint8Array
 }
 
-export const IdentityMemHardFn: MemoryHardFn = { name: 'Identity', harden: (x) => x } as const
+export const IdentityKSFFn: KSFFn = { name: 'Identity', harden: (x) => x } as const
 
-export const ScryptMemHardFn: MemoryHardFn = {
+export const ScryptKSFFn: KSFFn = {
     name: 'scrypt',
     harden: (msg: Uint8Array): Uint8Array => scrypt(msg, new Uint8Array(), { N: 32768, r: 8, p: 1 })
 } as const
@@ -171,15 +174,14 @@ export interface AKEExportKeyPair {
 export interface AKEFn {
     readonly Nsk: number // Nsk: The size of AKE private keys.
     readonly Npk: number // Npk: The size of AKE public keys.
-    deriveAuthKeyPair(seed: Uint8Array): Promise<AKEKeyPair>
-    recoverPublicKey(private_key: Uint8Array): AKEKeyPair
-    generateAuthKeyPair(): Promise<AKEExportKeyPair>
+    deriveDHKeyPair(seed: Uint8Array): Promise<AKEKeyPair>
+    generateDHKeyPair(): Promise<AKEKeyPair>
 }
 
 export interface OPRFFn {
     readonly Noe: number // Noe: The size of a serialized OPRF group element.
     readonly hash: string // hash: Name of the hash function used.
-    readonly id: number // id: Identifier of the OPRF.
+    readonly id: string // id: Identifier of the OPRF.
     readonly name: string // name: Name of the OPRF function.
     blind(input: Uint8Array): Promise<{ blind: Uint8Array; blindedElement: Uint8Array }>
     evaluate(key: Uint8Array, blinded: Uint8Array): Promise<Uint8Array>

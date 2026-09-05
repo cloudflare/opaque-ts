@@ -3,20 +3,18 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { AKEExportKeyPair, AKEKeyPair } from './thecrypto.js'
-import {
-    ExpectedAuthResult,
+import type { AKEExportKeyPair, AKEKeyPair } from './thecrypto.js'
+import type {
     KE1,
-    KE2,
     KE3,
     RegistrationRecord,
     RegistrationRequest,
-    RegistrationResponse,
-    Serializable
+    RegistrationResponse
 } from './messages.js'
+import { KE2, Serializable } from './messages.js'
 
 import { AKE3DHServer } from './3dh_server.js'
-import { Config } from './config.js'
+import type { Config } from './config.js'
 import { OpaqueCoreServer } from './core_server.js'
 
 export interface RegistrationServer {
@@ -33,9 +31,9 @@ export interface AuthServer {
         credential_identifier: string,
         client_identity?: string,
         context?: string
-    ): Promise<{ ke2: KE2; expected: ExpectedAuthResult } | Error>
+    ): Promise<KE2 | Error>
 
-    authFinish(ke3: KE3, expected: ExpectedAuthResult): { session_key: number[] } | Error
+    authFinish(ke3: KE3): { session_key: number[] } | Error
 }
 
 export class OpaqueServer implements RegistrationServer, AuthServer {
@@ -87,10 +85,10 @@ export class OpaqueServer implements RegistrationServer, AuthServer {
         credential_identifier: string,
         client_identity?: string,
         context?: string
-    ): Promise<{ ke2: KE2; expected: ExpectedAuthResult } | Error> {
+    ): Promise<KE2 | Error> {
         const credential_identifier_u8array = new TextEncoder().encode(credential_identifier)
-        const response = await this.opaque_core.createCredentialResponse(
-            ke1.request,
+        const credential_response = await this.opaque_core.createCredentialResponse(
+            ke1.credential_request,
             record,
             this.ake_keypair.public_key,
             credential_identifier_u8array
@@ -99,18 +97,21 @@ export class OpaqueServer implements RegistrationServer, AuthServer {
         // eslint-disable-next-line no-undefined
         const client_identity_u8array = client_identity ? te.encode(client_identity) : undefined
         const context_u8array = context ? te.encode(context) : new Uint8Array(0)
-        return this.ake.response(
+        const auth_response = await this.ake.response(
             this.ake_keypair.private_key,
             this.server_identity,
             ke1,
-            response,
+            credential_response,
             context_u8array,
             record.client_public_key,
             client_identity_u8array
         )
+        const ke2 = new KE2(credential_response, auth_response)
+
+        return ke2
     }
 
-    authFinish(ke3: KE3, expected: ExpectedAuthResult): { session_key: number[] } | Error {
-        return this.ake.finish(ke3.auth_finish, expected)
+    authFinish(ke3: KE3): { session_key: number[] } | Error {
+        return this.ake.finish(ke3.auth_finish)
     }
 }

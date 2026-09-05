@@ -8,7 +8,7 @@ import { fromHex, toHex } from './common.js'
 import { Hkdf } from '../src/thecrypto.js'
 import vectors from './testdata/hkdf.json'
 
-describe.each(vectors)('HKDF', (vector: typeof vectors[number]) => {
+describe.each(vectors)('HKDF', (vector: (typeof vectors)[number]) => {
     const { hash } = vector
     const hkdf = new Hkdf(hash)
     const ikm = fromHex(vector.ikm)

@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
-        "target": "ES2020",
-        "module": "ES2020",
+        "target": "ES2022",
+        "module": "ES2022",
         "lib": [
             "dom"
         ],
@@ -17,6 +17,7 @@
         "noFallthroughCasesInSwitch": true,
         "moduleResolution": "node",
         "esModuleInterop": true,
+        "verbatimModuleSyntax": true,
         "rootDir": ".",
         "outDir": "./lib"
     },

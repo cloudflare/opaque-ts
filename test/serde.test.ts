@@ -3,17 +3,17 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { OpaqueClient, OpaqueID, RegistrationRequest, getOpaqueConfig } from '../src/index.js'
+import { OpaqueClient, OpaqueConfig, OpaqueID, RegistrationRequest } from '../src/index.js'
+import { expectNotError } from './common.js'
 
 test('serde', async () => {
     const te = new TextEncoder()
-    const cfg = getOpaqueConfig(OpaqueID.OPAQUE_P256)
+    const cfg = new OpaqueConfig(OpaqueID.OPAQUE_P256)
     const client_password = te.encode('user_password')
     const client = new OpaqueClient(cfg)
     const request = await client.registerInit(new TextDecoder().decode(client_password))
-    if (request instanceof Error) {
-        throw new Error('client failed to registerInit')
-    }
+    expectNotError(request)
+
     const bytes = request.serialize()
     const expected = RegistrationRequest.deserialize(client.config, bytes)
     expect(expected).toEqual(request)

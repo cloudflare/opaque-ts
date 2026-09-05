@@ -3,16 +3,10 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import {
-    AKEKeyPair,
-    Config,
-    CredentialFile,
-    OpaqueID,
-    RegistrationRecord,
-    getOpaqueConfig
-} from '../src/index.js'
+import type { AKEKeyPair, Config, RegistrationRecord } from '../src/index.js'
+import { CredentialFile, OpaqueConfig, OpaqueID } from '../src/index.js'
 
-import { KVStorage } from './common.js'
+import { KVStorage, expectNotError } from './common.js'
 import { OpaqueCoreClient } from '../src/core_client.js'
 import { OpaqueCoreServer } from '../src/core_server.js'
 
@@ -32,7 +26,7 @@ interface outputTest {
     export_key?: number[]
 }
 
-async function test_core_registration(input: inputTest, output: outputTest): Promise<void> {
+async function test_core_registration(input: inputTest, output: outputTest): Promise<boolean> {
     // Setup
     const { cfg, password, server_identity, client_identity, credential_identifier, database } =
         input
@@ -79,9 +73,11 @@ async function test_core_registration(input: inputTest, output: outputTest): Pro
     expect(success).toBe(true)
     output.export_key = export_key
     output.record = record
+
+    return true
 }
 
-async function test_core_login(input: inputTest, output: outputTest): Promise<void> {
+async function test_core_login(input: inputTest, output: outputTest): Promise<boolean> {
     expect(output.record).toBeDefined()
     expect(output.export_key).toBeDefined()
 
@@ -123,34 +119,28 @@ async function test_core_login(input: inputTest, output: outputTest): Promise<vo
         server_identity,
         client_identity
     )
-
-    expect(result).not.toBeInstanceOf(Error)
-    if (result instanceof Error) {
-        throw new Error('client failed to recover credentials')
-    }
+    expectNotError(result)
 
     expect(result.client_ake_keypair.public_key).toStrictEqual(output.record?.client_public_key)
     expect(result.server_public_key).toStrictEqual(input.server_ake_keypair.public_key)
     expect(Array.from(result.export_key)).toStrictEqual(output.export_key)
+
+    return true
 }
 
 describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521])(
     'core',
     (opaqueID: OpaqueID) => {
-        const cfg = getOpaqueConfig(opaqueID)
+        const cfg = new OpaqueConfig(opaqueID)
 
-        describe(`${cfg.toString()}`, () => {
+        describe(`${cfg}`, () => {
             let input: inputTest = {} as unknown as inputTest
             let output: outputTest = {}
 
             beforeAll(async () => {
                 const te = new TextEncoder()
-                const server_ake_keypair_export = await cfg.ake.generateAuthKeyPair()
-                const server_ake_keypair = {
-                    public_key: new Uint8Array(server_ake_keypair_export.public_key),
-                    private_key: new Uint8Array(server_ake_keypair_export.private_key)
-                }
-
+                const seed = Uint8Array.from(cfg.prng.random(cfg.constants.Nseed))
+                const server_ake_keypair = await cfg.ake.deriveDHKeyPair(seed)
                 input = {
                     cfg,
                     database: new KVStorage(),
@@ -164,9 +154,13 @@ describe.each([OpaqueID.OPAQUE_P256, OpaqueID.OPAQUE_P384, OpaqueID.OPAQUE_P521]
                 output = {}
             })
 
-            test('Opaque-core-registration', () => test_core_registration(input, output))
+            test('Opaque-core-registration', async () => {
+                expect(await test_core_registration(input, output)).toBe(true)
+            })
 
-            test('Opaque-core-login', () => test_core_login(input, output))
+            test('Opaque-core-login', async () => {
+                expect(await test_core_login(input, output)).toBe(true)
+            })
         })
     }
 )

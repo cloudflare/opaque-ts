@@ -3,18 +3,13 @@
 // Licensed under the BSD-3-Clause license found in the LICENSE file or
 // at https://opensource.org/licenses/BSD-3-Clause
 
-import { AKEKeyPair, MemoryHardFn, ScryptMemHardFn } from './thecrypto.js'
-import {
-    CredentialRequest,
-    CredentialResponse,
-    Envelope,
-    RegistrationRecord,
-    RegistrationRequest,
-    RegistrationResponse
-} from './messages.js'
+import type { AKEKeyPair, KSFFn } from './thecrypto.js'
+import { ScryptKSFFn } from './thecrypto.js'
+import type { CredentialResponse, RegistrationResponse } from './messages.js'
+import { CredentialRequest, Envelope, RegistrationRecord, RegistrationRequest } from './messages.js'
 import { checked_vector, encode_vector_16, joinAll, xor } from './util.js'
 
-import { Config } from './config.js'
+import type { Config } from './config.js'
 import { LABELS } from './common.js'
 
 class CleartextCredentials {
@@ -71,7 +66,7 @@ async function expand_keys(
         joinAll([envelope_nonce, Uint8Array.from(LABELS.PrivateKey)]),
         cfg.constants.Nseed
     )
-    const client_ake_keypair = await cfg.ake.deriveAuthKeyPair(seed)
+    const client_ake_keypair = await cfg.ake.deriveDHKeyPair(seed)
 
     return { auth_key, export_key, client_ake_keypair }
 }
@@ -151,7 +146,10 @@ async function recover(
 }
 
 export class OpaqueCoreClient {
-    constructor(public readonly config: Config, private memHard: MemoryHardFn = ScryptMemHardFn) {}
+    constructor(
+        public readonly config: Config,
+        private ksf: KSFFn = ScryptKSFFn
+    ) {}
 
     async createRegistrationRequest(
         password: Uint8Array
@@ -171,11 +169,12 @@ export class OpaqueCoreClient {
         record: RegistrationRecord
         export_key: number[]
     }> {
-        const y = await this.config.oprf.finalize(password, blind, response.evaluation)
+        const oprf_output = await this.config.oprf.finalize(password, blind, response.evaluation)
         const nosalt = new Uint8Array(this.config.hash.Nh)
+        const stretched_oprf_output = this.ksf.harden(oprf_output)
         const randomized_pwd = await this.config.kdf.extract(
             nosalt,
-            joinAll([y, this.memHard.harden(y)])
+            joinAll([oprf_output, stretched_oprf_output])
         )
         const { envelope, client_public_key, masking_key, export_key } = await store(
             this.config,
@@ -215,7 +214,7 @@ export class OpaqueCoreClient {
         const nosalt = new Uint8Array(this.config.hash.Nh)
         const randomized_pwd = await this.config.kdf.extract(
             nosalt,
-            joinAll([y, this.memHard.harden(y)])
+            joinAll([y, this.ksf.harden(y)])
         )
         const masking_key = await this.config.kdf.expand(
             randomized_pwd,
