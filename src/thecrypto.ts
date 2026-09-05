@@ -6,6 +6,13 @@
 import { ctEqual, joinAll } from './util.js'
 
 import { scrypt } from '@noble/hashes/scrypt'
+import { crypto as platformCrypto } from '@noble/hashes/crypto'
+
+function getCrypto(): Crypto {
+    const api = platformCrypto as Crypto | undefined
+    if (!api) throw new Error('WebCrypto is unavailable in this environment')
+    return api
+}
 
 export interface PrngFn {
     random(numBytes: number): number[]
@@ -14,7 +21,7 @@ export interface PrngFn {
 export class Prng implements PrngFn {
     /* eslint-disable-next-line class-methods-use-this */
     random(numBytes: number): number[] {
-        return Array.from(crypto.getRandomValues(new Uint8Array(numBytes)))
+        return Array.from(getCrypto().getRandomValues(new Uint8Array(numBytes)))
     }
 }
 
@@ -47,7 +54,7 @@ export class Hash implements HashFn {
     }
 
     async sum(msg: Uint8Array): Promise<Uint8Array> {
-        return new Uint8Array(await crypto.subtle.digest(this.name, msg))
+        return new Uint8Array(await getCrypto().subtle.digest(this.name, msg))
     }
 }
 
@@ -81,9 +88,13 @@ export class Hmac implements MACFn {
 
     async with_key(key: Uint8Array): Promise<MACOps> {
         return new Hmac.Macops(
-            await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: this.hash }, false, [
-                'sign'
-            ])
+            await getCrypto().subtle.importKey(
+                'raw',
+                key,
+                { name: 'HMAC', hash: this.hash },
+                false,
+                ['sign']
+            )
         )
     }
 
@@ -92,7 +103,7 @@ export class Hmac implements MACFn {
 
         async sign(msg: Uint8Array): Promise<Uint8Array> {
             return new Uint8Array(
-                await crypto.subtle.sign(this.crypto_key.algorithm.name, this.crypto_key, msg)
+                await getCrypto().subtle.sign(this.crypto_key.algorithm.name, this.crypto_key, msg)
             )
         }
 
